@@ -47,7 +47,7 @@ export default function StaffList() {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">ข้อมูลพนักงานภายใน</h1>
+                <h1 className="text-3xl font-bold text-gray-800">ข้อมูลพนักงาน ภายใน</h1>
                 <button onClick={() => handleOpenModal()} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
                     <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มพนักงาน
                 </button>

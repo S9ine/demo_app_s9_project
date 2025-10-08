@@ -1,3 +1,4 @@
+// backend/src/server.js
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
@@ -13,14 +14,15 @@ async function testDbConnection() {
     } catch (error) {
         console.error('❌ Database connection failed!');
         console.error('Error Details:', error.message);
-        // พิมพ์รายละเอียดของ Error ทั้งหมดออกมา
         console.error(error);
     }
 }
 // -----------------------------------------
 
+// --- 1. Import Middleware และ Routes ---
 const authRoutes = require('./routes/authRoutes');
 const customerRoutes = require('./routes/customerRoutes');
+const { verifyToken } = require('./middleware/authMiddleware'); // << เพิ่มบรรทัดนี้
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,8 +30,12 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/auth', authRoutes);
-app.use('/api/customers', customerRoutes);
+// --- 2. กำหนด Routes ---
+// /api/auth เป็น Public Route ไม่ต้องป้องกัน
+app.use('/api/auth', authRoutes); 
+
+// /api/customers เป็น Private Route ต้องผ่านด่านตรวจ verifyToken ก่อน
+app.use('/api/customers', verifyToken, customerRoutes); // << แก้ไขบรรทัดนี้
 
 app.get('/', (req, res) => {
     res.send('Demo App S9 Backend is running!');
@@ -37,6 +43,5 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}`);
-    // ---- เรียกใช้ฟังก์ชันทดสอบทันทีที่ Server พร้อม ----
     testDbConnection();
 });
