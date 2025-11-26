@@ -3,6 +3,7 @@ import { initialCustomers } from '../../data/mockData';
 import CustomerFormModal from '../modals/CustomerFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import PaginationControls from '../common/PaginationControls';
 
 export default function CustomerList() {
     const [customers, setCustomers] = useState(initialCustomers);
@@ -10,6 +11,10 @@ export default function CustomerList() {
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [customerToDelete, setCustomerToDelete] = useState(null);
+
+    // Pagination States
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const handleOpenModal = (customer = null) => {
         setSelectedCustomer(customer);
@@ -63,7 +68,7 @@ export default function CustomerList() {
                         </tr>
                     </thead>
                     <tbody>
-                        {customers.map(c => (
+                        {customers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(c => (
                             <tr key={c.id} className="hover:bg-gray-50 border-b">
                                 <td className="p-3">{c.code}</td>
                                 <td className="p-3">{c.name}</td>
@@ -77,6 +82,18 @@ export default function CustomerList() {
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={customers.length}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(newItemsPerPage) => {
+                    setItemsPerPage(newItemsPerPage);
+                    setCurrentPage(1);
+                }}
+            />
+
             <CustomerFormModal
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}

@@ -3,6 +3,7 @@ import { initialStaff } from '../../data/mockData';
 import StaffFormModal from '../modals/StaffFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import PaginationControls from '../common/PaginationControls';
 
 export default function StaffList() {
     const [staff, setStaff] = useState(initialStaff);
@@ -10,6 +11,10 @@ export default function StaffList() {
     const [staffToDelete, setStaffToDelete] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedStaff, setSelectedStaff] = useState(null);
+
+    // Pagination States
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const handleOpenModal = (staffMember = null) => {
         setSelectedStaff(staffMember);
@@ -66,7 +71,7 @@ export default function StaffList() {
                         </tr>
                     </thead>
                     <tbody>
-                        {staff.map(s => (
+                        {staff.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(s => (
                             <tr key={s.id} className="hover:bg-gray-50 border-b">
                                 <td className="p-3">{s.staffId}</td>
                                 <td className="p-3">{s.title}{s.name}</td>
@@ -87,6 +92,18 @@ export default function StaffList() {
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={staff.length}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(newItemsPerPage) => {
+                    setItemsPerPage(newItemsPerPage);
+                    setCurrentPage(1);
+                }}
+            />
+
             <StaffFormModal
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}

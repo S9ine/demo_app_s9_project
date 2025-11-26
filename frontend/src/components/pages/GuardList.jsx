@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { initialGuards,initialBanks } from '../../data/mockData';
+import { initialGuards, initialBanks } from '../../data/mockData';
 import GuardFormModal from '../modals/GuardFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import PaginationControls from '../common/PaginationControls';
 
 export default function GuardList() {
     const [guards, setGuards] = useState(initialGuards);
@@ -10,6 +11,10 @@ export default function GuardList() {
     const [guardToDelete, setGuardToDelete] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedGuard, setSelectedGuard] = useState(null);
+
+    // Pagination States
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const handleOpenModal = (guard = null) => {
         setSelectedGuard(guard);
@@ -64,7 +69,7 @@ export default function GuardList() {
                         </tr>
                     </thead>
                     <tbody>
-                        {guards.map(g => (
+                        {guards.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(g => (
                             <tr key={g.id} className="hover:bg-gray-50 border-b">
                                 <td className="p-3">{g.guardId}</td>
                                 <td className="p-3">{g.title}{g.name}</td>
@@ -84,6 +89,18 @@ export default function GuardList() {
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={guards.length}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(newItemsPerPage) => {
+                    setItemsPerPage(newItemsPerPage);
+                    setCurrentPage(1);
+                }}
+            />
+
             <GuardFormModal
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}

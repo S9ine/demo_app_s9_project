@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { initialSites, initialCustomers, initialServices } from '../../data/mockData';
 import SiteFormModal from '../modals/SiteFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
-import { PlusCircle, Edit, Trash2, AlertTriangle } from 'lucide-react';
-
+import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import PaginationControls from '../common/PaginationControls';
 
 export default function SiteList() {
     const [sites, setSites] = useState(initialSites);
@@ -12,6 +12,10 @@ export default function SiteList() {
     const [selectedSite, setSelectedSite] = useState(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [siteToDelete, setSiteToDelete] = useState(null);
+
+    // Pagination States
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const handleOpenModal = (site = null) => {
         setSelectedSite(site);
@@ -55,7 +59,7 @@ export default function SiteList() {
                 </button>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                 <table className="w-full">
+                <table className="w-full">
                     <thead>
                         <tr className="border-b">
                             <th className="text-left p-3">ชื่อหน่วยงาน</th>
@@ -66,7 +70,7 @@ export default function SiteList() {
                         </tr>
                     </thead>
                     <tbody>
-                        {sites.map(s => (
+                        {sites.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(s => (
                             <tr key={s.id} className="hover:bg-gray-50 border-b">
                                 <td className="p-3">{s.name}</td>
                                 <td className="p-3">{customers.find(c => c.id === s.customerId)?.name}</td>
@@ -81,6 +85,18 @@ export default function SiteList() {
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={sites.length}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(newItemsPerPage) => {
+                    setItemsPerPage(newItemsPerPage);
+                    setCurrentPage(1);
+                }}
+            />
+
             <SiteFormModal
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}

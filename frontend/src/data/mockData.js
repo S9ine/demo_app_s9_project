@@ -31,10 +31,10 @@ export const initialRoles = [
 ];
 
 export const initialUsers = [
-    { id: 1, firstName: 'แอดมิน', lastName: 'ระบบ', email: 'admin@system.com', username: 'admin', roleId: 1, password: 'admin' },
-    { id: 2, firstName: 'สมศักดิ์', lastName: 'สายตรวจ', email: 'somsak@system.com', username: 'supervisor1', roleId: 2, password: 'password' },
-    { id: 3, firstName: 'สมหญิง', lastName: 'บุคคล', email: 'somyin@system.com', username: 'hr01', roleId: 3, password: 'password' },
-    { id: 4, firstName: 'วิชัย', lastName: 'สายตรวจ', email: 'vichai@system.com', username: 'supervisor2', roleId: 2, password: 'password' },
+  { id: 1, firstName: 'แอดมิน', lastName: 'ระบบ', email: 'admin@system.com', username: 'admin', roleId: 1, password: 'admin' },
+  { id: 2, firstName: 'สมศักดิ์', lastName: 'สายตรวจ', email: 'somsak@system.com', username: 'supervisor1', roleId: 2, password: 'password' },
+  { id: 3, firstName: 'สมหญิง', lastName: 'บุคคล', email: 'somyin@system.com', username: 'hr01', roleId: 3, password: 'password' },
+  { id: 4, firstName: 'วิชัย', lastName: 'สายตรวจ', email: 'vichai@system.com', username: 'supervisor2', roleId: 2, password: 'password' },
 ];
 
 export const initialServices = [
@@ -314,15 +314,15 @@ export const initialStaff = [
 ];
 
 export const initialBanks = [
-    { id: 1, code: '004', name: 'ธนาคารกสิกรไทย', shortNameEN: 'KBANK' },
-    { id: 2, code: '014', name: 'ธนาคารไทยพาณิชย์', shortNameEN: 'SCB' },
-    { id: 3, code: '002', name: 'ธนาคารกรุงเทพ', shortNameEN: 'BBL' },
-    { id: 4, code: '006', name: 'ธนาคารกรุงไทย', shortNameEN: 'KTB' },
-    { id: 5, code: '025', name: 'ธนาคารกรุงศรีอยุธยา', shortNameEN: 'BAY' },
+  { id: 1, code: '004', name: 'ธนาคารกสิกรไทย', shortNameEN: 'KBANK' },
+  { id: 2, code: '014', name: 'ธนาคารไทยพาณิชย์', shortNameEN: 'SCB' },
+  { id: 3, code: '002', name: 'ธนาคารกรุงเทพ', shortNameEN: 'BBL' },
+  { id: 4, code: '006', name: 'ธนาคารกรุงไทย', shortNameEN: 'KTB' },
+  { id: 5, code: '025', name: 'ธนาคารกรุงศรีอยุธยา', shortNameEN: 'BAY' },
 ];
 
 export const initialAdvanceDocuments = [
-    { id: 1, docNumber: 'ADV-20250826-001', date: '2025-08-26', type: 'advance', status: 'Pending', createdBy: 'supervisor1', items: [ { guardId: 101, amount: 300, reason: 'ค่าเดินทาง' }, { guardId: 102, amount: 250, reason: 'ค่าอาหาร' } ] },
-    { id: 2, docNumber: 'CASH-20250826-002', date: '2025-08-26', type: 'cash', status: 'Approved', createdBy: 'supervisor2', items: [ { guardId: 103, amount: 600, reason: 'เงินควงพิเศษ' } ] },
-    { id: 3, docNumber: 'ADV-20250826-003', date: '2025-08-26', type: 'advance', status: 'Draft', createdBy: 'supervisor1', items: [ { guardId: 102, amount: 100, reason: 'ค่ากาแฟ' } ] }
+  { id: 1, docNumber: 'ADV-20250826-001', date: '2025-08-26', type: 'advance', status: 'Pending', createdBy: 'supervisor1', items: [{ guardId: 101, amount: 300, reason: 'ค่าเดินทาง' }, { guardId: 102, amount: 250, reason: 'ค่าอาหาร' }] },
+  { id: 2, docNumber: 'CASH-20250826-002', date: '2025-08-26', type: 'cash', status: 'Approved', createdBy: 'supervisor2', items: [{ guardId: 103, amount: 600, reason: 'เงินควงพิเศษ' }] },
+  { id: 3, docNumber: 'ADV-20250826-003', date: '2025-08-26', type: 'advance', status: 'Draft', createdBy: 'supervisor1', items: [{ guardId: 102, amount: 100, reason: 'ค่ากาแฟ' }] }
 ];

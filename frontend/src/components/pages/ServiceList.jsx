@@ -2,12 +2,17 @@ import React, { useState } from 'react';
 import { initialServices } from '../../data/mockData';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import PaginationControls from '../common/PaginationControls';
 
 export default function ServiceList() {
     const [services, setServices] = useState(initialServices);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [serviceToDelete, setServiceToDelete] = useState(null);
-    
+
+    // Pagination States
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
+
     // Note: Add/Edit functionality is not fully implemented in the original code.
     // This component only shows the list and delete confirmation.
 
@@ -42,7 +47,7 @@ export default function ServiceList() {
                         </tr>
                     </thead>
                     <tbody>
-                        {services.map(s => (
+                        {services.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(s => (
                             <tr key={s.id} className="hover:bg-gray-50 border-b">
                                 <td className="p-3">{s.id}</td>
                                 <td className="p-3">{s.name}</td>
@@ -55,6 +60,18 @@ export default function ServiceList() {
                     </tbody>
                 </table>
             </div>
+
+            <PaginationControls
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                totalItems={services.length}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(newItemsPerPage) => {
+                    setItemsPerPage(newItemsPerPage);
+                    setCurrentPage(1);
+                }}
+            />
+
             <ConfirmationModal
                 isOpen={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
