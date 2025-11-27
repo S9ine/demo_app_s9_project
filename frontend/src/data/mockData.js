@@ -12,7 +12,8 @@ export const ALL_PAGES = [
   { id: "damage-deposit", label: "เงินประกันความเสียหาย" },
   { id: "social-security", label: "ประกันสังคม" },
   { id: "scheduler", label: "ตารางงาน" },
-  { id: "services", label: "สินค้าและบริการ" },
+  { id: "services", label: "บริการ" },
+  { id: "product", label: "สินค้า" },
   { id: "settings", label: "ตั้งค่าระบบ" },
 ];
 
@@ -42,6 +43,12 @@ export const initialServices = [
   { id: 2, name: "หัวหน้าชุดรักษาความปลอดภัย" },
   { id: 3, name: "พนักงานทำความสะอาด" },
   { id: 4, name: "ผู้จัดการอาคาร" },
+];
+
+export const initialProducts = [
+  { id: 1, code: 'P-001', name: 'วิทยุสื่อสาร', price: 5000, category: 'อุปกรณ์' },
+  { id: 2, code: 'P-002', name: 'เครื่องสแกนจุด', price: 15000, category: 'อุปกรณ์' },
+  { id: 3, code: 'P-003', name: 'ชุดยูนิฟอร์ม', price: 1200, category: 'เครื่องแต่งกาย' },
 ];
 
 export const initialCustomers = [

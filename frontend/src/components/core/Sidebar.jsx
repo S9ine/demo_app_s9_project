@@ -29,9 +29,14 @@ export default function Sidebar({ setActivePage, activePage, userPermissions }) 
                 { id: 'damage-deposit', label: 'เงินประกันความเสียหาย' },
             ]
         },
+        {
+            id: 'services', icon: FileText, label: 'สินค้าและบริการ', subItems: [
+                { id: 'services', label: 'บริการ' },
+                { id: 'product', label: 'สินค้า' },
+            ]
+        },
         { id: 'social-security', icon: UserCheck, label: 'ประกันสังคม' },
         { id: 'scheduler', icon: Calendar, label: 'ตารางงาน' },
-        { id: 'services', icon: ShoppingBag, label: 'สินค้าและบริการ' },
         { id: 'settings', icon: Settings, label: 'ตั้งค่าระบบ' },
     ];
 

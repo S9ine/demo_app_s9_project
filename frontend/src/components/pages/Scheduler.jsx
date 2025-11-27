@@ -214,6 +214,9 @@ export default function Scheduler() {
         );
     }
 
+    const displayedUnscheduledSites = unscheduledSites.slice(0, 5);
+    const displayedScheduledSites = scheduledSites.slice(0, 5);
+
     const filteredAvailableGuards = availableGuards.filter(guard =>
         guard.name.toLowerCase().includes(guardSearchTerm.toLowerCase())
     );
@@ -271,7 +274,7 @@ export default function Scheduler() {
                             <div className="border rounded-lg p-3">
                                 <h3 className="font-semibold text-center border-b pb-2 mb-2">หน่วยงานที่ยังไม่จัดตารางงาน</h3>
                                 <div className="space-y-2">
-                                    {unscheduledSites.length > 0 ? unscheduledSites.map(site => (
+                                    {displayedUnscheduledSites.length > 0 ? displayedUnscheduledSites.map(site => (
                                         <button key={`unscheduled-site-${site.id}`} onClick={() => handleSiteSelect(site)} className="w-full text-left p-3 bg-gray-100 hover:bg-indigo-100 rounded-lg">
                                             {site.name}
                                         </button>
@@ -282,7 +285,7 @@ export default function Scheduler() {
                             <div className="border rounded-lg p-3">
                                 <h3 className="font-semibold text-center border-b pb-2 mb-2 text-green-700">หน่วยงานที่จัดแล้ว</h3>
                                 <div className="space-y-2">
-                                    {scheduledSites.length > 0 ? scheduledSites.map(site => (
+                                    {displayedScheduledSites.length > 0 ? displayedScheduledSites.map(site => (
                                         <button key={`scheduled-site-${site.id}`} onClick={() => handleSiteSelect(site)} className="w-full text-left p-3 bg-green-100 hover:bg-green-200 rounded-lg">
                                             {site.name}
                                         </button>
