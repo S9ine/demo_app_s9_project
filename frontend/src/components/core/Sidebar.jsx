@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Home, Users, Briefcase, UserCheck, FileText, Calendar, ShoppingBag, Settings } from 'lucide-react';
 
-export default function Sidebar({ setActivePage, activePage, userPermissions }) {
+export default function Sidebar({ setActivePage, activePage, userPermissions, userRole }) {
     const [openMenus, setOpenMenus] = useState({});
 
     const toggleMenu = (menu) => {
@@ -41,6 +41,11 @@ export default function Sidebar({ setActivePage, activePage, userPermissions }) 
     ];
 
     const visibleMenuItems = menuItems.map(item => {
+        // Admin sees everything
+        if (userRole === 'Admin') {
+            return item;
+        }
+
         if (!item.subItems) {
             return userPermissions.includes(item.id) ? item : null;
         }
