@@ -22,10 +22,8 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
     useEffect(() => {
         if (customer) {
             // กรณีแก้ไข: แปลงข้อมูลจาก Backend กลับมาใส่ฟอร์ม
-            // เนื่องจาก Database เก็บที่อยู่เป็น String เดียว เราจึงเอามาใส่ในช่อง 'บ้านเลขที่...' (street) ไปก่อน
-            // เพื่อให้ User สามารถแก้ไขและจัดรูปแบบใหม่ได้
             setFormData({
-                code: customer.code || '', // ใช้ code ที่ Frontend สร้างขึ้นชั่วคราว
+                code: customer.code || '',
                 taxId: customer.taxId || '',
                 name: customer.name || '',
                 address: {
@@ -52,7 +50,7 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
         } else {
             // กรณีเพิ่มใหม่: เคลียร์ค่าเป็นค่าว่าง
             setFormData({
-                code: '', // Reset code to empty string
+                code: '',
                 taxId: '',
                 name: '',
                 address: { street: '', subdistrict: '', district: '', province: '', zipcode: '' },
@@ -81,19 +79,15 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
             const newData = { ...prev };
 
             if (section === 'address') {
-                // อัปเดตที่อยู่หลัก
                 newData.address = { ...newData.address, [name]: val };
-                // ถ้าติ๊ก "ใช้ที่อยู่เดียวกับที่อยู่หลัก" ให้อัปเดตที่อยู่วางบิลตามไปด้วย
                 if (newData.billing.useSameAddress) {
                     newData.billing.address = { ...newData.address, [name]: val };
                 }
             } else if (section === 'contact') {
-                // อัปเดตข้อมูลผู้ติดต่อ (primary/secondary)
                 if (subsection) {
                     newData.contact[subsection] = { ...newData.contact[subsection], [name]: val };
                 }
             } else if (section === 'billing') {
-                // อัปเดตข้อมูลวางบิล
                 if (name === 'useSameAddress') {
                     newData.billing.useSameAddress = val;
                     if (val) {
@@ -105,7 +99,6 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
                     newData.billing[name] = val;
                 }
             } else {
-                // อัปเดตข้อมูลทั่วไป (ชั้นนอกสุด)
                 newData[name] = val;
             }
             return newData;
@@ -115,6 +108,12 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
     const handleSubmit = (e) => {
         e.preventDefault();
 
+        // Validate รหัสลูกค้าไม่ให้มีช่องว่าง
+        if (formData.code && formData.code.includes(' ')) {
+            alert('รหัสลูกค้าต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)');
+            return;
+        }
+
         // รวมข้อมูลที่อยู่จากหลายช่อง ให้เป็น String เดียว เพื่อส่งให้ Backend
         const combineAddress = (addr) => {
             return [addr.street, addr.subdistrict, addr.district, addr.province, addr.zipcode]
@@ -123,23 +122,20 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
 
         const dataToSave = {
             id: customer?.id,
+            code: formData.code,
             name: formData.name,
-            // รวมที่อยู่ส่งไปเก็บในฟิลด์ address ของ DB
             address: combineAddress(formData.address),
             contactPerson: formData.contact.primary.name,
             phone: formData.contact.primary.phone,
             email: formData.contact.primary.email,
-            isActive: true, // ค่า Default
-            // ส่งข้อมูลอื่นๆ ไปด้วย (เผื่อ Backend รองรับในอนาคต หรือเพื่อความสมบูรณ์ของ Frontend Logic)
-            code: formData.code,
             taxId: formData.taxId,
             mapLink: formData.mapLink,
             contact: formData.contact,
-            billing: formData.billing
+            billing: formData.billing,
+            isActive: true
         };
 
         onSave(dataToSave);
-        // การปิด Modal จะถูกจัดการโดย Parent Component หลัง Save เสร็จ
     };
 
     return (
@@ -156,14 +152,30 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
                                 <h3 className="font-bold text-lg mb-4 border-b pb-2">ข้อมูลทั่วไป</h3>
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div>
-                                        <label className="block text-sm text-gray-700 mb-1">รหัสลูกค้า</label>
+                                        <label className="block text-sm text-gray-700 mb-1">
+                                            รหัสลูกค้า <span className="text-red-500">*</span>
+                                        </label>
                                         <input
                                             type="text"
                                             name="code"
                                             value={formData.code}
                                             onChange={(e) => handleChange(e)}
+                                            onBlur={(e) => {
+                                                const value = e.target.value;
+                                                if (value && value.includes(' ')) {
+                                                    alert('รหัสลูกค้าต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)');
+                                                    e.target.focus();
+                                                } else if (value && !/^[\w\-]+$/.test(value)) {
+                                                    alert('รหัสลูกค้าต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น');
+                                                    e.target.focus();
+                                                }
+                                            }}
+                                            pattern="[\w\-]+"
+                                            title="รหัสลูกค้าต้องไม่มีช่องว่าง (ใช้ - หรือ _ แทน)"
                                             className="w-full border p-2 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            required
                                         />
+                                        <p className="text-xs text-gray-500 mt-1">ตัวอย่าง: CUST-001, ABC_123 (ห้ามมีช่องว่าง)</p>
                                     </div>
                                     <div>
                                         <label className="block text-sm text-gray-700 mb-1">เลขประจำตัวผู้เสียภาษี</label>

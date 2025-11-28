@@ -3,12 +3,14 @@ import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
 import CustomerFormModal from '../modals/CustomerFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import ExcelImportModal from '../modals/ExcelImportModal';
+import { PlusCircle, Edit, Trash2, Upload } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 
 export default function CustomerList() {
     const [customers, setCustomers] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [customerToDelete, setCustomerToDelete] = useState(null);
@@ -25,7 +27,7 @@ export default function CustomerList() {
             // แปลงข้อมูลจาก API ให้เข้ากับโครงสร้างที่ Frontend ใช้แสดงผล
             setCustomers(response.data.map(c => ({
                 ...c,
-                code: `CUS-${String(c.id).padStart(3, '0')}`, // สร้างรหัสจำลองจาก ID
+                // ใช้ code จาก Backend โดยตรง (เช่น TEST001) ไม่ต้องสร้างรหัสจำลอง
                 contact: { primary: { name: c.contactPerson, phone: c.phone, email: c.email } }
             })));
         } catch (error) {
@@ -51,15 +53,20 @@ export default function CustomerList() {
 
     const handleSaveCustomer = async (customerData) => {
         try {
-            // เตรียมข้อมูลให้ตรงกับ Schema ของ Backend (CustomerCreate/Update)
+            // เตรียมข้อมูลให้ตรงกับ Schema ของ Backend
             const payload = {
+                code: customerData.code,
                 name: customerData.name,
                 contactPerson: customerData.contact?.primary?.name || '',
                 phone: customerData.contact?.primary?.phone || '',
                 email: customerData.contact?.primary?.email || '',
                 address: typeof customerData.address === 'object'
-                    ? `${customerData.address.street} ${customerData.address.subdistrict} ${customerData.address.district} ${customerData.address.province} ${customerData.address.zipcode}`
+                    ? `${customerData.address.street || ''} ${customerData.address.subdistrict || ''} ${customerData.address.district || ''} ${customerData.address.province || ''} ${customerData.address.zipcode || ''}`.trim()
                     : customerData.address,
+                taxId: customerData.taxId,
+                mapLink: customerData.mapLink,
+                contact: customerData.contact,
+                billing: customerData.billing,
                 isActive: customerData.isActive !== undefined ? customerData.isActive : true
             };
 
@@ -98,10 +105,23 @@ export default function CustomerList() {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">ข้อมูลลูกค้า</h1>
-                <button onClick={() => handleOpenModal()} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                    <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มลูกค้า
-                </button>
+                <h1 className="text-2xl font-bold text-gray-800">ข้อมูลลูกค้า</h1>
+                <div className="flex space-x-2">
+                    <button
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
+                    >
+                        <Upload className="w-5 h-5 mr-2" />
+                        Import Excel
+                    </button>
+                    <button
+                        onClick={() => handleOpenModal()}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center"
+                    >
+                        <PlusCircle className="w-5 h-5 mr-2" />
+                        เพิ่มลูกค้า
+                    </button>
+                </div>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                 {isLoading ? (
@@ -162,6 +182,15 @@ export default function CustomerList() {
                 onConfirm={handleDelete}
                 title="ยืนยันการลบลูกค้า"
                 message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลลูกค้า "${customerToDelete?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+            />
+
+            <ExcelImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onSuccess={() => {
+                    setIsImportModalOpen(false);
+                    fetchCustomers();
+                }}
             />
         </div>
     );

@@ -1,4 +1,9 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
+from fastapi.responses import FileResponse
+import pandas as pd
+from io import BytesIO
+import os
+import re
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -74,34 +79,6 @@ async def create_customer(
         email=customer_data.email,
         address=customer_data.address,
         isActive=customer_data.isActive
-    )
-    
-    db.add(new_customer)
-    await db.commit()
-    await db.refresh(new_customer)
-    
-    return {
-        "id": str(new_customer.id),
-        "code": new_customer.code,
-        "name": new_customer.name,
-        "contactPerson": new_customer.contactPerson,
-        "phone": new_customer.phone,
-        "email": new_customer.email,
-        "address": new_customer.address,
-        "isActive": new_customer.isActive,
-        "createdAt": new_customer.createdAt
-    }
-
-
-@router.get("/customers/{customer_id}", response_model=CustomerResponse)
-async def get_customer(
-    customer_id: str,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
-):
-    """Get customer by ID"""
-    try:
-        cid = int(customer_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid customer ID")
         
@@ -198,15 +175,6 @@ async def delete_customer(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
         
-    await db.delete(customer)
-    await db.commit()
-    
-    return {"message": "Customer deleted successfully"}
-
-
-# ========== SITE ENDPOINTS ==========
-# ... (ส่วนอื่นเหมือนเดิม - ละไว้เพื่อความกระชับ) ...
-# ... existing code for sites, guards, staff, banks ...
 
 # ========== SITE ENDPOINTS ==========
 
