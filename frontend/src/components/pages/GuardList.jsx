@@ -1,20 +1,53 @@
-import React, { useState } from 'react';
-import { initialGuards, initialBanks } from '../../data/mockData';
+// frontend/src/components/pages/GuardList.jsx
+import React, { useState, useEffect } from 'react';
+import api from '../../config/api';
 import GuardFormModal from '../modals/GuardFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 
 export default function GuardList() {
-    const [guards, setGuards] = useState(initialGuards);
+    const [guards, setGuards] = useState([]);
+    const [banks, setBanks] = useState([]);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [guardToDelete, setGuardToDelete] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedGuard, setSelectedGuard] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    const fetchGuardsAndBanks = async () => {
+        setIsLoading(true);
+        try {
+            const [guardsRes, banksRes] = await Promise.all([
+                api.get('/guards'),
+                api.get('/banks')
+            ]);
+
+            setBanks(banksRes.data);
+            // แปลงข้อมูลจาก Backend ให้ตรงกับที่ Modal ต้องการ
+            setGuards(guardsRes.data.map(g => ({
+                ...g,
+                title: 'นาย', // ค่า default
+                paymentInfo: {
+                    accountNumber: g.bankAccountNo,
+                    bankName: banksRes.data.find(b => b.code === g.bankCode)?.name || g.bankCode || '',
+                    accountName: '',
+                },
+                startDate: new Date().toISOString().split('T')[0] // ค่า default
+            })));
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchGuardsAndBanks();
+    }, []);
 
     const handleOpenModal = (guard = null) => {
         setSelectedGuard(guard);
@@ -26,13 +59,28 @@ export default function GuardList() {
         setSelectedGuard(null);
     };
 
-    const handleSaveGuard = (guardData) => {
-        if (guardData.id) {
-            setGuards(guards.map(g => g.id === guardData.id ? guardData : g));
-        } else {
-            setGuards([...guards, { ...guardData, id: Date.now() }]);
+    const handleSaveGuard = async (guardData) => {
+        try {
+            const payload = {
+                guardId: guardData.guardId,
+                name: guardData.name,
+                phone: guardData.phone,
+                address: guardData.address,
+                bankAccountNo: guardData.paymentInfo?.accountNumber || "",
+                bankCode: banks.find(b => b.name === guardData.paymentInfo?.bankName)?.code || guardData.paymentInfo?.bankCode || "",
+                isActive: guardData.status === 'Active'
+            };
+
+            if (guardData.id) {
+                await api.put(`/guards/${guardData.id}`, payload);
+            } else {
+                await api.post('/guards', payload);
+            }
+            fetchGuardsAndBanks();
+            handleCloseModal();
+        } catch (error) {
+            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
         }
-        handleCloseModal();
     };
 
     const openDeleteConfirm = (guard) => {
@@ -40,13 +88,20 @@ export default function GuardList() {
         setIsConfirmOpen(true);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (guardToDelete) {
-            setGuards(guards.filter(g => g.id !== guardToDelete.id));
-            setIsConfirmOpen(false);
-            setGuardToDelete(null);
+            try {
+                await api.delete(`/guards/${guardToDelete.id}`);
+                fetchGuardsAndBanks();
+                setIsConfirmOpen(false);
+                setGuardToDelete(null);
+            } catch (error) {
+                alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการลบข้อมูล');
+            }
         }
     };
+
+    const paginatedGuards = guards.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
         <div>
@@ -57,37 +112,39 @@ export default function GuardList() {
                 </button>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b">
-                            <th className="text-left p-3">รหัส</th>
-                            <th className="text-left p-3">ชื่อ-สกุล</th>
-                            <th className="text-left p-3">เบอร์โทร</th>
-                            <th className="text-left p-3">วันที่เริ่มงาน</th>
-                            <th className="text-left p-3">สถานะ</th>
-                            <th className="text-left p-3">การกระทำ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {guards.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(g => (
-                            <tr key={g.id} className="hover:bg-gray-50 border-b">
-                                <td className="p-3">{g.guardId}</td>
-                                <td className="p-3">{g.title}{g.name}</td>
-                                <td className="p-3">{g.phone}</td>
-                                <td className="p-3">{g.startDate}</td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${g.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {g.status === 'Active' ? 'ทำงาน' : 'ลาออก'}
-                                    </span>
-                                </td>
-                                <td className="p-3 flex space-x-2">
-                                    <button onClick={() => handleOpenModal(g)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
-                                    <button onClick={() => openDeleteConfirm(g)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
-                                </td>
+                {isLoading ? (
+                    <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
+                ) : (
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b">
+                                <th className="text-left p-3">รหัส</th>
+                                <th className="text-left p-3">ชื่อ-สกุล</th>
+                                <th className="text-left p-3">เบอร์โทร</th>
+                                <th className="text-left p-3">สถานะ</th>
+                                <th className="text-left p-3">การกระทำ</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {paginatedGuards.map(g => (
+                                <tr key={g.id} className="hover:bg-gray-50 border-b">
+                                    <td className="p-3">{g.guardId}</td>
+                                    <td className="p-3">{g.title}{g.name}</td>
+                                    <td className="p-3">{g.phone}</td>
+                                    <td className="p-3">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${g.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {g.isActive ? 'ทำงาน' : 'ลาออก'}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 flex space-x-2">
+                                        <button onClick={() => handleOpenModal(g)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
+                                        <button onClick={() => openDeleteConfirm(g)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
 
             <PaginationControls
@@ -106,7 +163,7 @@ export default function GuardList() {
                 onClose={handleCloseModal}
                 onSave={handleSaveGuard}
                 guard={selectedGuard}
-                banks={initialBanks}
+                banks={banks}
             />
             <ConfirmationModal
                 isOpen={isConfirmOpen}

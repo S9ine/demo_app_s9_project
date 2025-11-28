@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { initialGuards, initialUsers, initialAdvanceDocuments } from '../../data/mockData';
+// frontend/src/components/pages/DailyAdvancePage.jsx
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import api from '../../config/api';
 import { PlusCircle, Edit, Trash2, X, FileText, User, Clock, Share2, Download } from 'lucide-react';
 
 // Component for Creating/Editing Documents
@@ -14,9 +15,9 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
             if (document) {
                 setDocData(document);
                 const rows = document.items.map(item => {
-                    const guard = guards.find(g => g.id === item.guardId);
+                    const guard = guards.find(g => g.guardId === item.guardId);
                     if (guard) {
-                       setSearchTerms(prev => ({ ...prev, [item.guardId]: `${guard.guardId} - ${guard.name}` }));
+                        setSearchTerms(prev => ({ ...prev, [item.guardId]: `${guard.guardId} - ${guard.name}` }));
                     }
                     return { tempId: item.guardId, ...item };
                 });
@@ -27,8 +28,8 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
                 const prefix = advanceType === 'advance' ? 'ADV' : 'CASH';
                 const docNumber = `${prefix}-${dateStr.replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
 
-                setDocData({ docNumber, date: dateStr, type: advanceType, createdBy: currentUser.username });
-                setEntryRows([{ tempId: Date.now(), guardId: '', amount: '', reason: '' }]);
+                setDocData({ docNumber, date: dateStr, type: advanceType, createdBy: currentUser.username, status: "Draft" });
+                setEntryRows([{ tempId: Date.now(), guardId: '', amount: 0, reason: '' }]);
                 setSearchTerms({});
             }
         }
@@ -39,12 +40,12 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
             const amount = parseFloat(row.amount);
             return sum + (isNaN(amount) ? 0 : amount);
         }, 0);
-        const totalItems = entryRows.length;
+        const totalItems = entryRows.filter(row => row.guardId && parseFloat(row.amount) > 0).length;
         return { totalAmount, totalItems };
     }, [entryRows]);
 
     const handleAddRow = () => {
-        setEntryRows([...entryRows, { tempId: Date.now(), guardId: '', amount: '', reason: '' }]);
+        setEntryRows([...entryRows, { tempId: Date.now(), guardId: '', amount: 0, reason: '' }]);
     };
 
     const handleRemoveRow = (tempId) => {
@@ -62,7 +63,7 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
     };
 
     const handleGuardSelect = (tempId, guard) => {
-        handleRowChange(tempId, 'guardId', guard.id);
+        handleRowChange(tempId, 'guardId', guard.guardId);
         setSearchTerms({ ...searchTerms, [tempId]: `${guard.guardId} - ${guard.name}` });
         setActiveDropdown(null);
     };
@@ -70,33 +71,36 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
     const handleSave = (status) => {
         const validItems = entryRows
             .filter(row => row.guardId && parseFloat(row.amount) > 0)
-            .map(({ tempId, ...item }) => ({...item, amount: parseFloat(item.amount)}));
+            .map(({ tempId, ...item }) => ({
+                ...item,
+                amount: parseFloat(item.amount)
+            }));
 
         if (validItems.length === 0) {
-            alert("กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ (ต้องเลือกพนักงานและระบุจำนวนเงิน)");
+            alert("กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ");
             return;
         }
 
         const finalDocument = {
-            ...docData,
-            id: document?.id || Date.now(),
-            status,
+            docNumber: docData.docNumber,
+            date: docData.date,
+            type: docData.type,
+            status: status,
             items: validItems,
-            createdBy: document?.createdBy || currentUser.username,
         };
 
-        onSave(finalDocument);
+        onSave(finalDocument, document?.id);
         onClose();
     };
 
-    const getFilteredGuards = (tempId) => {
+    const getFilteredGuards = useCallback((tempId) => {
         const term = searchTerms[tempId]?.toLowerCase() || '';
         if (!term) return [];
         return guards.filter(g =>
             g.name.toLowerCase().includes(term) ||
             g.guardId.toLowerCase().includes(term)
         ).slice(0, 5);
-    };
+    }, [guards, searchTerms]);
 
     if (!isOpen) return null;
 
@@ -109,7 +113,7 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center border-b pb-3 mb-4">
                     <h2 className="text-xl font-bold">{document ? 'แก้ไขเอกสารเบิก' : 'สร้างเอกสารเบิกใหม่'}</h2>
-                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-gray-500 hover:text-gray-600"/></button>
+                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-gray-500 hover:text-gray-600" /></button>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4 text-sm">
                     <div><span className="font-semibold">เลขที่เอกสาร:</span> {docData.docNumber}</div>
@@ -127,14 +131,16 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
                                         <input
                                             type="text"
                                             placeholder="ค้นหาพนักงาน..."
-                                            value={searchTerms[row.tempId] || ''}
+                                            value={searchTerms[row.tempId] || (guards.find(g => g.guardId === row.guardId) ? `${guards.find(g => g.guardId === row.guardId).guardId} - ${guards.find(g => g.guardId === row.guardId).name}` : '')}
                                             onChange={(e) => handleGuardSearch(row.tempId, e.target.value)}
+                                            onFocus={() => setActiveDropdown(row.tempId)}
+                                            onBlur={() => setTimeout(() => setActiveDropdown(null), 200)}
                                             className="w-full p-2 border rounded-md mt-1"
                                         />
                                         {activeDropdown === row.tempId && getFilteredGuards(row.tempId).length > 0 && (
                                             <div className="absolute z-20 w-full bg-white border rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
                                                 {getFilteredGuards(row.tempId).map(guard => (
-                                                    <div key={guard.id} onClick={() => handleGuardSelect(row.tempId, guard)} className="p-2 hover:bg-indigo-100 cursor-pointer text-sm">
+                                                    <div key={guard.id} onMouseDown={() => handleGuardSelect(row.tempId, guard)} className="p-2 hover:bg-indigo-100 cursor-pointer text-sm">
                                                         {guard.guardId} - {guard.name}
                                                     </div>
                                                 ))}
@@ -168,17 +174,17 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
                             </div>
                         </div>
                     ))}
-                     <button onClick={handleAddRow} className="w-full flex items-center justify-center mt-2 px-3 py-2 bg-white text-indigo-600 rounded-lg hover:bg-indigo-50 border-2 border-dashed border-gray-300 transition-colors text-sm font-semibold">
+                    <button onClick={handleAddRow} className="w-full flex items-center justify-center mt-2 px-3 py-2 bg-white text-indigo-600 rounded-lg hover:bg-indigo-50 border-2 border-dashed border-gray-300 transition-colors text-sm font-semibold">
                         <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มรายการ
                     </button>
                 </div>
                 <div className="mt-4 pt-4 border-t flex justify-between items-center font-semibold">
-                     <p className="text-gray-600">
+                    <p className="text-gray-600">
                         ทั้งหมด: <span className="text-indigo-600">{summary.totalItems}</span> รายการ
-                     </p>
-                     <p className="text-gray-800 text-lg">
+                    </p>
+                    <p className="text-gray-800 text-lg">
                         ยอดรวม: <span className="text-green-600">{summary.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span> บาท
-                     </p>
+                    </p>
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">
                     <button type="button" onClick={() => handleSave('Draft')} className="px-5 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-semibold">บันทึกแบบร่าง</button>
@@ -189,7 +195,7 @@ function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceT
     );
 }
 
-// Component for Previewing and Saving Image
+// Component for Previewing and Saving Image (Reuse with minor prop updates)
 function AdvanceDocumentPreviewModal({ isOpen, onClose, document, getGuardName, getUserFullName }) {
     const [isLoading, setIsLoading] = useState(false);
     const [isScriptReady, setIsScriptReady] = useState(false);
@@ -204,12 +210,7 @@ function AdvanceDocumentPreviewModal({ isOpen, onClose, document, getGuardName, 
                 script.id = scriptId;
                 script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
                 script.async = true;
-                
-                script.onload = () => {
-                    console.log("html2canvas script loaded successfully.");
-                    setIsScriptReady(true);
-                };
-                
+                script.onload = () => setIsScriptReady(true);
                 document.body.appendChild(script);
             }
         } else if (window.html2canvas) {
@@ -220,7 +221,6 @@ function AdvanceDocumentPreviewModal({ isOpen, onClose, document, getGuardName, 
     const handleSaveImage = () => {
         setIsLoading(true);
         const captureElement = document.getElementById('capture-area');
-
         window.html2canvas(captureElement)
             .then(canvas => {
                 const image = canvas.toDataURL('image/png');
@@ -232,22 +232,10 @@ function AdvanceDocumentPreviewModal({ isOpen, onClose, document, getGuardName, 
                 document.body.removeChild(link);
                 setIsLoading(false);
             })
-            .catch(err => {
-                console.error("Error during html2canvas capture:", err);
-                alert("เกิดข้อผิดพลาดขณะสร้างรูปภาพ โปรดตรวจสอบ Console");
-                setIsLoading(false);
-            });
+            .catch(() => setIsLoading(false));
     };
 
-    if (!isOpen) return null;
-
-    if (!document || !document.items) {
-      return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white p-6 rounded-lg shadow-xl">กำลังโหลดข้อมูล...</div>
-        </div>
-      );
-    }
+    if (!isOpen || !document || !document.items) return null;
 
     const totalAmount = document.items.reduce((sum, item) => sum + item.amount, 0);
 
@@ -256,7 +244,7 @@ function AdvanceDocumentPreviewModal({ isOpen, onClose, document, getGuardName, 
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
                 <div className="flex justify-between items-center border-b pb-3 mb-4">
                     <h2 className="text-xl font-bold">ตัวอย่างเอกสาร</h2>
-                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-gray-500"/></button>
+                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-gray-500" /></button>
                 </div>
                 <div id="capture-area" className="bg-white p-4 border rounded-md mb-4 flex-1 overflow-y-auto">
                     <h3 className="text-lg font-bold text-center mb-2">รายการเบิกจ่าย</h3>
@@ -295,18 +283,9 @@ function AdvanceDocumentPreviewModal({ isOpen, onClose, document, getGuardName, 
                     </table>
                 </div>
                 <div className="flex justify-end">
-                    <button 
-                        onClick={handleSaveImage} 
-                        disabled={!isScriptReady || isLoading} 
-                        className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
+                    <button onClick={handleSaveImage} disabled={!isScriptReady || isLoading} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400">
                         <Download className="w-5 h-5 mr-2" />
-                        {isLoading 
-                            ? 'กำลังสร้างรูป...' 
-                            : !isScriptReady 
-                                ? 'กำลังเตรียม...' 
-                                : 'บันทึกเป็นรูปภาพ'
-                        }
+                        {isLoading ? 'กำลังสร้างรูป...' : 'บันทึกเป็นรูปภาพ'}
                     </button>
                 </div>
             </div>
@@ -314,29 +293,55 @@ function AdvanceDocumentPreviewModal({ isOpen, onClose, document, getGuardName, 
     );
 }
 
-// Main Page Component
 export default function DailyAdvancePage({ user }) {
-    const [documents, setDocuments] = useState(initialAdvanceDocuments);
-    const [guards] = useState(initialGuards);
+    const [documents, setDocuments] = useState([]);
+    const [guards, setGuards] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDocument, setEditingDocument] = useState(null);
     const [activeTab, setActiveTab] = useState('advance');
     const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
     const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
     const [documentToPreview, setDocumentToPreview] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [users, setUsers] = useState([]);
 
-    const handleSaveDocument = (docData) => {
-        const docIndex = documents.findIndex(doc => doc.id === docData.id);
-        if (docIndex > -1) {
-            const updatedDocs = [...documents];
-            updatedDocs[docIndex] = docData;
-            setDocuments(updatedDocs);
-        } else {
-            setDocuments(prev => [docData, ...prev]);
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [docsRes, guardsRes, usersRes] = await Promise.all([
+                api.get('/daily-advances', { params: { date: currentDate, type: activeTab } }),
+                api.get('/guards'),
+                api.get('/users')
+            ]);
+
+            setDocuments(docsRes.data);
+            setGuards(guardsRes.data);
+            setUsers(usersRes.data);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setIsLoading(false);
         }
+    };
 
-        if (docData.status === 'Pending') {
-            handleOpenPreview(docData);
+    useEffect(() => {
+        if (user) fetchData();
+    }, [currentDate, activeTab, user]);
+
+    const handleSaveDocument = async (docData, docId) => {
+        try {
+            if (docId) {
+                await api.put(`/daily-advances/${docId}`, docData);
+            } else {
+                await api.post('/daily-advances', docData);
+            }
+            await fetchData();
+            if (docData.status === 'Pending') {
+                const updatedDoc = documents.find(d => d.docNumber === docData.docNumber);
+                if (updatedDoc) handleOpenPreview(updatedDoc);
+            }
+        } catch (error) {
+            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
         }
     };
 
@@ -351,12 +356,12 @@ export default function DailyAdvancePage({ user }) {
     };
 
     const getGuardName = (guardId) => {
-        const guard = guards.find(g => g.id === guardId);
+        const guard = guards.find(g => g.guardId === guardId);
         return guard ? `${guard.name} (${guard.guardId})` : 'ไม่พบข้อมูล';
     };
 
     const getUserFullName = (username) => {
-        const foundUser = initialUsers.find(u => u.username === username);
+        const foundUser = users.find(u => u.username === username);
         return foundUser ? `${foundUser.firstName} ${foundUser.lastName}` : username;
     };
 
@@ -374,35 +379,16 @@ export default function DailyAdvancePage({ user }) {
         Rejected: 'ปฏิเสธ',
     };
 
-    const filteredDocuments = useMemo(() => {
-        if (!user) return []; // Safety check
-        return documents
-            .filter(doc =>
-                doc.type === activeTab &&
-                doc.date === currentDate &&
-                (user.role === 'Admin' || doc.createdBy === user.username)
-            )
-            .sort((a, b) => b.id - a.id);
-    }, [documents, activeTab, currentDate, user]);
-
-    const TabButton = ({ label, type, isActive }) => (
-        <button onClick={() => setActiveTab(type)} className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${isActive ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
-            {label}
-        </button>
-    );
-    
-    if (!user) {
-        return <div className="p-6 text-center text-red-500">ไม่พบข้อมูลผู้ใช้!</div>
-    }
+    if (!user) return <div className="p-6 text-center text-red-500">ไม่พบข้อมูลผู้ใช้!</div>;
 
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
                 <h1 className="text-3xl font-bold text-gray-800">รายการเบิกจ่ายรายวัน</h1>
                 <div className="flex items-center space-x-4">
-                     <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2">
                         <label htmlFor="date-filter" className="text-sm font-medium">วันที่:</label>
-                        <input type="date" id="date-filter" value={currentDate} onChange={(e) => setCurrentDate(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg"/>
+                        <input type="date" id="date-filter" value={currentDate} onChange={(e) => setCurrentDate(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg" />
                     </div>
                     <button onClick={() => handleOpenModal(null)} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
                         <PlusCircle className="w-5 h-5 mr-2" /> สร้างเอกสารเบิก
@@ -411,59 +397,53 @@ export default function DailyAdvancePage({ user }) {
             </div>
 
             <div className="flex border-b">
-                <TabButton label="เบิกรายวัน (หักเงินเดือน)" type="advance" isActive={activeTab === 'advance'} />
-                <TabButton label="เงินควง (จ่ายเงินสด)" type="cash" isActive={activeTab === 'cash'} />
+                <TabButton label="เบิกรายวัน (หักเงินเดือน)" type="advance" isActive={activeTab === 'advance'} onClick={() => setActiveTab('advance')} />
+                <TabButton label="เงินควง (จ่ายเงินสด)" type="cash" isActive={activeTab === 'cash'} onClick={() => setActiveTab('cash')} />
             </div>
 
             <div className="mt-6 space-y-4">
-                {filteredDocuments.map(doc => (
-                    <div key={doc.id} className="bg-white p-4 rounded-lg shadow-md border flex justify-between items-center">
-                        <div className="flex items-center space-x-4">
-                            <FileText className="w-8 h-8 text-gray-400" />
-                            <div>
-                                <p className="font-semibold text-gray-800">{doc.docNumber}</p>
-                                <p className="text-sm text-gray-500">
-                                    <span className="mr-4"><User className="w-3 h-3 inline -mt-1 mr-1"/>{getUserFullName(doc.createdBy)}</span>
-                                    <Clock className="w-3 h-3 inline -mt-1 mr-1"/>{doc.items.length} รายการ
-                                </p>
+                {isLoading ? (
+                    <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
+                ) : (
+                    documents.map(doc => (
+                        <div key={doc.id} className="bg-white p-4 rounded-lg shadow-md border flex justify-between items-center">
+                            <div className="flex items-center space-x-4">
+                                <FileText className="w-8 h-8 text-gray-400" />
+                                <div>
+                                    <p className="font-semibold text-gray-800">{doc.docNumber}</p>
+                                    <p className="text-sm text-gray-500">
+                                        <span className="mr-4"><User className="w-3 h-3 inline -mt-1 mr-1" />{getUserFullName(doc.createdBy)}</span>
+                                        <Clock className="w-3 h-3 inline -mt-1 mr-1" />{doc.items.length} รายการ
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusStyles[doc.status]}`}>
+                                    {statusText[doc.status]}
+                                </span>
+                                {doc.status === 'Draft' && doc.createdBy === user.username && (
+                                    <button onClick={() => handleOpenModal(doc)} className="text-blue-500 hover:text-blue-700" title="แก้ไข"><Edit className="w-5 h-5" /></button>
+                                )}
+                                {doc.status !== 'Draft' && (
+                                    <button onClick={() => handleOpenPreview(doc)} className="text-green-500 hover:text-green-700" title="ส่งออก"><Share2 className="w-5 h-5" /></button>
+                                )}
                             </div>
                         </div>
-                        <div className="flex items-center space-x-4">
-                            <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusStyles[doc.status]}`}>
-                                {statusText[doc.status]}
-                            </span>
-                            {doc.status === 'Draft' && doc.createdBy === user.username && (
-                                <button onClick={() => handleOpenModal(doc)} className="text-blue-500 hover:text-blue-700" title="แก้ไข"><Edit className="w-5 h-5" /></button>
-                            )}
-                            <button onClick={() => handleOpenPreview(doc)} className="text-green-500 hover:text-green-700" title="ส่งออกเป็นรูปภาพ"><Share2 className="w-5 h-5" /></button>
-                        </div>
-                    </div>
-                ))}
-                 {filteredDocuments.length === 0 && (
-                    <div className="text-center py-12 text-gray-500 bg-white rounded-lg shadow-md">
-                        <p>ไม่มีเอกสารที่คุณสร้างในวันที่เลือก</p>
-                    </div>
+                    ))
+                )}
+                {documents.length === 0 && !isLoading && (
+                    <div className="text-center py-12 text-gray-500 bg-white rounded-lg shadow-md">ไม่มีเอกสารในวันที่เลือก</div>
                 )}
             </div>
-            
-            <AdvanceBatchModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={handleSaveDocument}
-                guards={guards}
-                document={editingDocument}
-                advanceType={activeTab}
-                currentUser={user}
-                getUserFullName={getUserFullName}
-            />
-            <AdvanceDocumentPreviewModal
-                isOpen={isPreviewModalOpen}
-                onClose={() => setIsPreviewModalOpen(false)}
-                document={documentToPreview}
-                guards={guards}
-                getGuardName={getGuardName}
-                getUserFullName={getUserFullName}
-            />
+
+            <AdvanceBatchModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveDocument} guards={guards} document={editingDocument} advanceType={activeTab} currentUser={user} getUserFullName={getUserFullName} />
+            <AdvanceDocumentPreviewModal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} document={documentToPreview} guards={guards} getGuardName={getGuardName} getUserFullName={getUserFullName} />
         </div>
     );
 }
+
+const TabButton = ({ label, isActive, onClick }) => (
+    <button onClick={onClick} className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${isActive ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+        {label}
+    </button>
+);

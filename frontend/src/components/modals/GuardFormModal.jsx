@@ -17,7 +17,7 @@ export default function GuardFormModal({ isOpen, onClose, onSave, guard, banks =
             status: guard?.status || 'Active',
             paymentInfo: guard?.paymentInfo ? { ...guard.paymentInfo } : { bankName: '', accountName: '', accountNumber: '' },
         };
-        
+
         if (!initialData.paymentInfo.bankName && banks.length > 0) {
             initialData.paymentInfo.bankName = banks[0].name;
         }
@@ -57,11 +57,11 @@ export default function GuardFormModal({ isOpen, onClose, onSave, guard, banks =
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-700">รหัสพนักงาน</label>
-                            <input type="text" name="guardId" value={formData.guardId || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                            <input type="text" name="guardId" value={formData.guardId || ''} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">คำนำหน้า</label>
-                            <select name="title" value={formData.title || 'นาย'} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <select name="title" value={formData.title || 'นาย'} onChange={handleChange} required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                                 <option>นาย</option>
                                 <option>นาง</option>
                                 <option>นางสาว</option>
@@ -98,16 +98,16 @@ export default function GuardFormModal({ isOpen, onClose, onSave, guard, banks =
                                 <option value="Inactive">ลาออก</option>
                             </select>
                         </div>
-                        
+
                         <div className="md:col-span-2 mt-4 pt-4 border-t">
                             <h3 className="font-semibold text-lg mb-4">ข้อมูลการรับเงิน</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700">ธนาคาร</label>
-                                    <select 
-                                        name="bankName" 
-                                        value={formData.paymentInfo?.bankName || ''} 
-                                        onChange={handlePaymentChange} 
+                                    <select
+                                        name="bankName"
+                                        value={formData.paymentInfo?.bankName || ''}
+                                        onChange={handlePaymentChange}
                                         className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
                                     >
                                         <option value="" disabled>-- กรุณาเลือกธนาคาร --</option>

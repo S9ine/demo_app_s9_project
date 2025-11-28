@@ -13,14 +13,12 @@ function AppContent() {
     const [activePage, setActivePage] = React.useState('dashboard');
     const [isLoading, setIsLoading] = React.useState(false);
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-        // Simulate async login
-        setTimeout(() => {
-            login(username, password);
-            setIsLoading(false);
-        }, 500);
+        // เรียกใช้ login แบบ async และรอจนเสร็จ
+        await login(username, password);
+        setIsLoading(false);
     };
 
     const handleLogout = () => {

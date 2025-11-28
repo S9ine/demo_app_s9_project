@@ -7,7 +7,9 @@ from app.schemas.master_data import (
     SiteCreate, SiteUpdate, SiteResponse,
     GuardCreate, GuardUpdate, GuardResponse,
     StaffCreate, StaffUpdate, StaffResponse,
-    BankCreate, BankUpdate, BankResponse
+    BankCreate, BankUpdate, BankResponse,
+    ProductCreate, ProductUpdate, ProductResponse,
+    ServiceCreate, ServiceUpdate, ServiceResponse
 )
 from app.core.deps import get_current_active_user
 from app.database import get_db
@@ -17,6 +19,8 @@ from app.models.guard import Guard
 from app.models.staff import Staff
 from app.models.bank import Bank
 from app.models.user import User
+from app.models.product import Product
+from app.models.service import Service
 import json
 
 
@@ -37,6 +41,7 @@ async def get_customers(
     return [
         {
             "id": str(c.id),
+            "code": c.code, # ส่งค่า code จริงจาก DB
             "name": c.name,
             "contactPerson": c.contactPerson,
             "phone": c.phone,
@@ -56,7 +61,13 @@ async def create_customer(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new customer"""
+    # Check duplicate code
+    result = await db.execute(select(Customer).where(Customer.code == customer_data.code))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="รหัสลูกค้าซ้ำ (Customer Code already exists)")
+
     new_customer = Customer(
+        code=customer_data.code, # บันทึก code
         name=customer_data.name,
         contactPerson=customer_data.contactPerson,
         phone=customer_data.phone,
@@ -71,6 +82,7 @@ async def create_customer(
     
     return {
         "id": str(new_customer.id),
+        "code": new_customer.code,
         "name": new_customer.name,
         "contactPerson": new_customer.contactPerson,
         "phone": new_customer.phone,
@@ -101,6 +113,7 @@ async def get_customer(
     
     return {
         "id": str(customer.id),
+        "code": customer.code,
         "name": customer.name,
         "contactPerson": customer.contactPerson,
         "phone": customer.phone,
@@ -130,6 +143,14 @@ async def update_customer(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
+    if customer_data.code is not None:
+        # Check duplicate if code is changing
+        if customer_data.code != customer.code:
+            existing = await db.execute(select(Customer).where(Customer.code == customer_data.code))
+            if existing.scalar_one_or_none():
+                raise HTTPException(status_code=400, detail="รหัสลูกค้าซ้ำ")
+        customer.code = customer_data.code
+
     if customer_data.name is not None:
         customer.name = customer_data.name
     if customer_data.contactPerson is not None:
@@ -148,6 +169,7 @@ async def update_customer(
     
     return {
         "id": str(customer.id),
+        "code": customer.code,
         "name": customer.name,
         "contactPerson": customer.contactPerson,
         "phone": customer.phone,
@@ -181,6 +203,10 @@ async def delete_customer(
     
     return {"message": "Customer deleted successfully"}
 
+
+# ========== SITE ENDPOINTS ==========
+# ... (ส่วนอื่นเหมือนเดิม - ละไว้เพื่อความกระชับ) ...
+# ... existing code for sites, guards, staff, banks ...
 
 # ========== SITE ENDPOINTS ==========
 
@@ -567,7 +593,7 @@ async def get_staff(
     return [
         {
             "id": str(s.id),
-            "guardId": s.staffId,  # Map staffId to guardId for frontend compatibility
+            "guardId": s.staffId,
             "name": s.name,
             "phone": s.phone,
             "address": s.address,
@@ -857,3 +883,111 @@ async def delete_bank(
     await db.commit()
     
     return {"message": "Bank deleted successfully"}
+
+# ========== PRODUCT ENDPOINTS ==========
+
+@router.get("/products", response_model=List[ProductResponse])
+async def get_products(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Product).order_by(Product.code))
+    return [
+        {"id": str(p.id), "code": p.code, "name": p.name, "category": p.category, "price": p.price, "isActive": p.isActive, "createdAt": p.createdAt}
+        for p in result.scalars().all()
+    ]
+
+@router.post("/products", response_model=ProductResponse)
+async def create_product(product_data: ProductCreate, db: AsyncSession = Depends(get_db)):
+    # Check duplicate code
+    existing = await db.execute(select(Product).where(Product.code == product_data.code))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="รหัสสินค้าซ้ำ")
+        
+    new_product = Product(**product_data.model_dump())
+    db.add(new_product)
+    await db.commit()
+    await db.refresh(new_product)
+    return {"id": str(new_product.id), "code": new_product.code, "name": new_product.name, "category": new_product.category, "price": new_product.price, "isActive": new_product.isActive, "createdAt": new_product.createdAt}
+
+@router.put("/products/{product_id}", response_model=ProductResponse)
+async def update_product(product_id: str, product_data: ProductUpdate, db: AsyncSession = Depends(get_db)):
+    try:
+        pid = int(product_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+        
+    result = await db.execute(select(Product).where(Product.id == pid))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+        
+    for key, value in product_data.model_dump(exclude_unset=True).items():
+        setattr(product, key, value)
+        
+    await db.commit()
+    await db.refresh(product)
+    return {"id": str(product.id), "code": product.code, "name": product.name, "category": product.category, "price": product.price, "isActive": product.isActive, "createdAt": product.createdAt}
+
+@router.delete("/products/{product_id}")
+async def delete_product(product_id: str, db: AsyncSession = Depends(get_db)):
+    try:
+        pid = int(product_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+        
+    result = await db.execute(select(Product).where(Product.id == pid))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+        
+    await db.delete(product)
+    await db.commit()
+    return {"message": "Product deleted"}
+
+# ========== SERVICE ENDPOINTS ==========
+
+@router.get("/services", response_model=List[ServiceResponse])
+async def get_services(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Service).order_by(Service.id))
+    return [{"id": str(s.id), "name": s.name, "isActive": s.isActive, "createdAt": s.createdAt} for s in result.scalars().all()]
+
+@router.post("/services", response_model=ServiceResponse)
+async def create_service(service_data: ServiceCreate, db: AsyncSession = Depends(get_db)):
+    new_service = Service(**service_data.model_dump())
+    db.add(new_service)
+    await db.commit()
+    await db.refresh(new_service)
+    return {"id": str(new_service.id), "name": new_service.name, "isActive": new_service.isActive, "createdAt": new_service.createdAt}
+
+@router.put("/services/{service_id}", response_model=ServiceResponse)
+async def update_service(service_id: str, service_data: ServiceUpdate, db: AsyncSession = Depends(get_db)):
+    try:
+        sid = int(service_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+        
+    result = await db.execute(select(Service).where(Service.id == sid))
+    service = result.scalar_one_or_none()
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+        
+    for key, value in service_data.model_dump(exclude_unset=True).items():
+        setattr(service, key, value)
+        
+    await db.commit()
+    await db.refresh(service)
+    return {"id": str(service.id), "name": service.name, "isActive": service.isActive, "createdAt": service.createdAt}
+
+@router.delete("/services/{service_id}")
+async def delete_service(service_id: str, db: AsyncSession = Depends(get_db)):
+    try:
+        sid = int(service_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+        
+    result = await db.execute(select(Service).where(Service.id == sid))
+    service = result.scalar_one_or_none()
+    if not service:
+        raise HTTPException(status_code=404, detail="Service not found")
+        
+    await db.delete(service)
+    await db.commit()
+    return {"message": "Service deleted"}

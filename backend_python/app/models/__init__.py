@@ -9,6 +9,9 @@ from app.models.guard import Guard
 from app.models.staff import Staff
 from app.models.bank import Bank
 from app.models.daily_advance import DailyAdvance
+# เพิ่ม 2 บรรทัดนี้
+from app.models.product import Product
+from app.models.service import Service
 
 __all__ = [
     "User",
@@ -18,5 +21,7 @@ __all__ = [
     "Guard",
     "Staff",
     "Bank",
-    "DailyAdvance"
+    "DailyAdvance",
+    "Product", # เพิ่ม
+    "Service"  # เพิ่ม
 ]

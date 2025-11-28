@@ -72,7 +72,18 @@ export const AuthProvider = ({ children }) => {
             return true;
 
         } catch (err) {
-            setError(err.response?.data?.detail || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+            // แก้ไขการดึง error message เพื่อป้องกันหน้าขาว
+            const errorDetail = err.response?.data?.detail;
+            let errorMessage = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+
+            if (typeof errorDetail === 'string') {
+                errorMessage = errorDetail;
+            } else if (Array.isArray(errorDetail)) {
+                // กรณี Validation Error (เช่น รหัสสั้นเกินไป)
+                errorMessage = errorDetail.map(e => e.msg).join(', ');
+            }
+
+            setError(errorMessage);
             setIsLoading(false);
             return false;
         }

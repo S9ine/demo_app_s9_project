@@ -1,20 +1,43 @@
-import React, { useState } from 'react'
-import { initialStaff } from '../../data/mockData';
+// frontend/src/components/pages/StaffList.jsx
+import React, { useState, useEffect } from 'react'
+import api from '../../config/api';
 import StaffFormModal from '../modals/StaffFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 
 export default function StaffList() {
-    const [staff, setStaff] = useState(initialStaff);
+    const [staff, setStaff] = useState([]);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [staffToDelete, setStaffToDelete] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedStaff, setSelectedStaff] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    const fetchStaff = async () => {
+        setIsLoading(true);
+        try {
+            const response = await api.get('/staff');
+            setStaff(response.data.map(s => ({
+                ...s,
+                staffId: s.guardId, // Backend ใช้ฟิลด์ guardId แทน staffId ในบางโมเดล (Reuse logic)
+                position: 'พนักงานทั่วไป', // Mock data
+                title: 'นาย', // Mock data
+                status: s.isActive ? 'Active' : 'Resigned'
+            })));
+        } catch (error) {
+            console.error('Error fetching staff:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchStaff();
+    }, []);
 
     const handleOpenModal = (staffMember = null) => {
         setSelectedStaff(staffMember);
@@ -26,14 +49,28 @@ export default function StaffList() {
         setSelectedStaff(null);
     };
 
-    const handleSaveStaff = (staffData) => {
-        if (staffData.id) {
-            setStaff(staff.map(s => s.id === staffData.id ? staffData : s));
-        } else {
-            const newId = staff.length > 0 ? Math.max(...staff.map(s => s.id)) + 1 : 201;
-            setStaff([...staff, { ...staffData, id: newId }]);
+    const handleSaveStaff = async (staffData) => {
+        try {
+            const payload = {
+                guardId: staffData.staffId,
+                name: staffData.name,
+                phone: staffData.phone,
+                address: staffData.address,
+                bankAccountNo: staffData.bankAccountNo || "",
+                bankCode: staffData.bankCode || "",
+                isActive: staffData.status === 'Active',
+            };
+
+            if (staffData.id) {
+                await api.put(`/staff/${staffData.id}`, payload);
+            } else {
+                await api.post('/staff', payload);
+            }
+            fetchStaff();
+            handleCloseModal();
+        } catch (error) {
+            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
         }
-        handleCloseModal();
     };
 
     const openDeleteConfirm = (staffMember) => {
@@ -41,13 +78,20 @@ export default function StaffList() {
         setIsConfirmOpen(true);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (staffToDelete) {
-            setStaff(staff.filter(s => s.id !== staffToDelete.id));
-            setIsConfirmOpen(false);
-            setStaffToDelete(null);
+            try {
+                await api.delete(`/staff/${staffToDelete.id}`);
+                fetchStaff();
+                setIsConfirmOpen(false);
+                setStaffToDelete(null);
+            } catch (error) {
+                alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการลบข้อมูล');
+            }
         }
     };
+
+    const paginatedStaff = staff.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
         <div>
@@ -58,39 +102,41 @@ export default function StaffList() {
                 </button>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b">
-                            <th className="text-left p-3">รหัส</th>
-                            <th className="text-left p-3">ชื่อ-สกุล</th>
-                            <th className="text-left p-3">ตำแหน่ง</th>
-                            <th className="text-left p-3">เบอร์โทร</th>
-                            <th className="text-left p-3">อีเมล</th>
-                            <th className="text-left p-3">สถานะ</th>
-                            <th className="text-left p-3">การกระทำ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {staff.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(s => (
-                            <tr key={s.id} className="hover:bg-gray-50 border-b">
-                                <td className="p-3">{s.staffId}</td>
-                                <td className="p-3">{s.title}{s.name}</td>
-                                <td className="p-3">{s.position}</td>
-                                <td className="p-3">{s.phone}</td>
-                                <td className="p-3">{s.email}</td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${s.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {s.status === 'Active' ? 'ทำงาน' : 'ลาออก'}
-                                    </span>
-                                </td>
-                                <td className="p-3 flex space-x-2">
-                                    <button onClick={() => handleOpenModal(s)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
-                                    <button onClick={() => openDeleteConfirm(s)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
-                                </td>
+                {isLoading ? (
+                    <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
+                ) : (
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b">
+                                <th className="text-left p-3">รหัส</th>
+                                <th className="text-left p-3">ชื่อ-สกุล</th>
+                                <th className="text-left p-3">ตำแหน่ง</th>
+                                <th className="text-left p-3">เบอร์โทร</th>
+                                <th className="text-left p-3">สถานะ</th>
+                                <th className="text-left p-3">การกระทำ</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {paginatedStaff.map(s => (
+                                <tr key={s.id} className="hover:bg-gray-50 border-b">
+                                    <td className="p-3">{s.staffId}</td>
+                                    <td className="p-3">{s.title}{s.name}</td>
+                                    <td className="p-3">{s.position}</td>
+                                    <td className="p-3">{s.phone}</td>
+                                    <td className="p-3">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${s.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {s.status === 'Active' ? 'ทำงาน' : 'ลาออก'}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 flex space-x-2">
+                                        <button onClick={() => handleOpenModal(s)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
+                                        <button onClick={() => openDeleteConfirm(s)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
 
             <PaginationControls

@@ -1,21 +1,44 @@
-import React, { useState } from 'react';
-import { initialSites, initialCustomers, initialServices } from '../../data/mockData';
+// frontend/src/components/pages/SiteList.jsx
+import React, { useState, useEffect } from 'react';
+import api from '../../config/api';
 import SiteFormModal from '../modals/SiteFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
+// เรายังคงใช้ initialServices จาก mockData สำหรับ dropdown ตำแหน่งงาน เพราะยังไม่มี API Master Data สำหรับ Service
+import { initialServices } from '../../data/mockData';
 
 export default function SiteList() {
-    const [sites, setSites] = useState(initialSites);
-    const [customers, setCustomers] = useState(initialCustomers);
+    const [sites, setSites] = useState([]);
+    const [customers, setCustomers] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedSite, setSelectedSite] = useState(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [siteToDelete, setSiteToDelete] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+
+    const fetchData = async () => {
+        setIsLoading(true);
+        try {
+            const [sitesRes, customersRes] = await Promise.all([
+                api.get('/sites'),
+                api.get('/customers')
+            ]);
+            setSites(sitesRes.data);
+            setCustomers(customersRes.data);
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
 
     const handleOpenModal = (site = null) => {
         setSelectedSite(site);
@@ -27,14 +50,40 @@ export default function SiteList() {
         setSelectedSite(null);
     };
 
-    const handleSaveSite = (siteData) => {
-        if (siteData.id) {
-            setSites(sites.map(s => s.id === siteData.id ? siteData : s));
-        } else {
-            const newId = sites.length > 0 ? Math.max(...sites.map(s => s.id)) + 1 : 1;
-            setSites([...sites, { ...siteData, id: newId }]);
+    const handleSaveSite = async (siteData) => {
+        try {
+            // แปลงโครงสร้างข้อมูลให้ตรงกับ Backend
+            const payload = {
+                name: siteData.name,
+                customerId: String(siteData.customerId),
+                address: typeof siteData.address === 'object'
+                    ? Object.values(siteData.address).filter(Boolean).join(' ')
+                    : siteData.address,
+                contactPerson: siteData.contactPerson || "",
+                phone: siteData.phone || "",
+                contractedServices: siteData.contractedServices.map(s => ({
+                    id: String(s.serviceId || s.id),
+                    serviceName: initialServices.find(i => i.id === parseInt(s.serviceId))?.name || s.position,
+                    position: s.position,
+                    payoutRate: parseFloat(s.payoutRate) || 0,
+                    hiringRate: parseFloat(s.hiringRate) || 0,
+                    diligenceBonus: parseFloat(s.diligenceBonus) || 0,
+                    pointBonus: parseFloat(s.pointBonus) || 0,
+                    otherBonus: parseFloat(s.otherBonus) || 0,
+                })),
+                isActive: siteData.isActive !== undefined ? siteData.isActive : true
+            };
+
+            if (siteData.id) {
+                await api.put(`/sites/${siteData.id}`, payload);
+            } else {
+                await api.post('/sites', payload);
+            }
+            fetchData();
+            handleCloseModal();
+        } catch (error) {
+            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
         }
-        handleCloseModal();
     };
 
     const openDeleteConfirm = (site) => {
@@ -42,13 +91,20 @@ export default function SiteList() {
         setIsConfirmOpen(true);
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (siteToDelete) {
-            setSites(sites.filter(s => s.id !== siteToDelete.id));
-            setIsConfirmOpen(false);
-            setSiteToDelete(null);
+            try {
+                await api.delete(`/sites/${siteToDelete.id}`);
+                fetchData();
+                setIsConfirmOpen(false);
+                setSiteToDelete(null);
+            } catch (error) {
+                alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการลบข้อมูล');
+            }
         }
     };
+
+    const paginatedSites = sites.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
         <div>
@@ -59,31 +115,37 @@ export default function SiteList() {
                 </button>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-                <table className="w-full">
-                    <thead>
-                        <tr className="border-b">
-                            <th className="text-left p-3">ชื่อหน่วยงาน</th>
-                            <th className="text-left p-3">ลูกค้า</th>
-                            <th className="text-left p-3">วันเริ่มสัญญา</th>
-                            <th className="text-left p-3">วันสิ้นสุดสัญญา</th>
-                            <th className="text-left p-3">การกระทำ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sites.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(s => (
-                            <tr key={s.id} className="hover:bg-gray-50 border-b">
-                                <td className="p-3">{s.name}</td>
-                                <td className="p-3">{customers.find(c => c.id === s.customerId)?.name}</td>
-                                <td className="p-3">{s.startDate}</td>
-                                <td className="p-3">{s.endDate}</td>
-                                <td className="p-3 flex space-x-2">
-                                    <button onClick={() => handleOpenModal(s)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
-                                    <button onClick={() => openDeleteConfirm(s)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
-                                </td>
+                {isLoading ? (
+                    <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
+                ) : (
+                    <table className="w-full">
+                        <thead>
+                            <tr className="border-b">
+                                <th className="text-left p-3">ชื่อหน่วยงาน</th>
+                                <th className="text-left p-3">ลูกค้า</th>
+                                <th className="text-left p-3">สถานะ</th>
+                                <th className="text-left p-3">การกระทำ</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {paginatedSites.map(s => (
+                                <tr key={s.id} className="hover:bg-gray-50 border-b">
+                                    <td className="p-3">{s.name}</td>
+                                    <td className="p-3">{s.customerName || customers.find(c => String(c.id) === String(s.customerId))?.name || "-"}</td>
+                                    <td className="p-3">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${s.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {s.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'}
+                                        </span>
+                                    </td>
+                                    <td className="p-3 flex space-x-2">
+                                        <button onClick={() => handleOpenModal(s)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
+                                        <button onClick={() => openDeleteConfirm(s)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
 
             <PaginationControls

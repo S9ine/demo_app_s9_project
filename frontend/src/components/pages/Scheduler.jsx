@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { initialGuards, initialSites } from '../../data/mockData';
+import React, { useState, useEffect } from 'react';
+import api from '../../config/api'; // เรียกใช้ API Config
 import { Search, X, GripVertical, Trash2 } from 'lucide-react';
 
 export default function Scheduler() {
@@ -12,10 +12,15 @@ export default function Scheduler() {
     const [siteSearchTerm, setSiteSearchTerm] = useState('');
     const [guardSearchTerm, setGuardSearchTerm] = useState('');
 
+    // Data form API
+    const [allSites, setAllSites] = useState([]);
+    const [allGuards, setAllGuards] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
     // Drag and Drop States
-    const [availableGuards, setAvailableGuards] = useState(initialGuards.map(g => ({ ...g, originalId: g.id })));
+    const [availableGuards, setAvailableGuards] = useState([]);
     const [shifts, setShifts] = useState({ day: [], night: [] });
-    const [draggedItem, setDraggedItem] = useState(null); // {guard, source: 'available' | 'day' | 'night'}
+    const [draggedItem, setDraggedItem] = useState(null);
 
     // Position Selection Modal States
     const [isPositionModalOpen, setIsPositionModalOpen] = useState(false);
@@ -26,6 +31,31 @@ export default function Scheduler() {
 
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
     const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+
+    // Fetch Data from API
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true);
+            try {
+                const [sitesRes, guardsRes] = await Promise.all([
+                    api.get('/sites'),
+                    api.get('/guards')
+                ]);
+                setAllSites(sitesRes.data);
+
+                // แปลงข้อมูล Guard ให้พร้อมใช้งาน (เพิ่ม originalId ถ้าจำเป็น)
+                const guardsData = guardsRes.data.map(g => ({ ...g, originalId: g.id }));
+                setAllGuards(guardsData);
+                setAvailableGuards(guardsData);
+
+            } catch (error) {
+                console.error("Error fetching scheduler data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     const handleDateClick = (day) => {
         const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
@@ -42,17 +72,18 @@ export default function Scheduler() {
         const existingScheduleForDate = schedule[dateKey] || {};
         const existingScheduleForSite = existingScheduleForDate[site.id];
 
+        // หา ID ของรปภ. ที่ถูกจัดตารางไปแล้วในวันนั้น (ทุก Site)
         const scheduledGuardIdsForDate = Object.values(existingScheduleForDate)
             .flatMap(s => [...s.shifts.day, ...s.shifts.night])
             .map(g => g.id);
 
         if (existingScheduleForSite) {
             setShifts(existingScheduleForSite.shifts);
-            const scheduledInThisSite = [...existingScheduleForSite.shifts.day, ...existingScheduleForSite.shifts.night].map(g => g.id);
-            setAvailableGuards(initialGuards.filter(g => !scheduledGuardIdsForDate.includes(g.id)));
+            // กรองเฉพาะรปภ.ที่ยังว่างอยู่
+            setAvailableGuards(allGuards.filter(g => !scheduledGuardIdsForDate.includes(g.id)));
         } else {
             setShifts({ day: [], night: [] });
-            setAvailableGuards(initialGuards.filter(g => !scheduledGuardIdsForDate.includes(g.id)));
+            setAvailableGuards(allGuards.filter(g => !scheduledGuardIdsForDate.includes(g.id)));
         }
 
         setIsSchedulerModalOpen(true);
@@ -63,6 +94,7 @@ export default function Scheduler() {
 
         const dateKey = selectedDate.toISOString().split('T')[0];
 
+        // บันทึกลง Local State (เนื่องจากยังไม่มี API Endpoint สำหรับ Schedule)
         setSchedule(prev => {
             const updatedDateSchedule = {
                 ...(prev[dateKey] || {}),
@@ -77,6 +109,14 @@ export default function Scheduler() {
                 [dateKey]: updatedDateSchedule
             };
         });
+
+        // TODO: เมื่อมี Backend API สำหรับ Schedule ให้เรียกใช้ตรงนี้
+        // ตัวอย่าง:
+        // await api.post('/schedules', { 
+        //    date: dateKey, 
+        //    siteId: selectedSite.id, 
+        //    shifts: shifts 
+        // });
 
         setIsSchedulerModalOpen(false);
         setSelectedSite(null);
@@ -145,6 +185,7 @@ export default function Scheduler() {
     };
 
     const handlePositionSelect = (position) => {
+        // หาข้อมูลตำแหน่งจาก contractedServices ของ Site ที่เลือก
         const serviceInfo = selectedSite.contractedServices.find(s => s.position === position);
         if (!serviceInfo || !guardForPosition) return;
 
@@ -191,7 +232,7 @@ export default function Scheduler() {
             [shiftName]: prev[shiftName].filter(g => g.id !== guard.id)
         }));
 
-        const guardToAddBack = initialGuards.find(g => g.id === guard.id);
+        const guardToAddBack = allGuards.find(g => g.id === guard.id);
         if (guardToAddBack) {
             setAvailableGuards(prev =>
                 [...prev, guardToAddBack].sort((a, b) => a.id - b.id)
@@ -199,19 +240,17 @@ export default function Scheduler() {
         }
     };
 
+    // Filter Logic
     const dateKey = selectedDate ? selectedDate.toISOString().split('T')[0] : null;
-    const scheduledSiteIds = dateKey && schedule[dateKey] ? Object.keys(schedule[dateKey]).map(Number) : [];
+    const scheduledSiteIds = dateKey && schedule[dateKey] ? Object.keys(schedule[dateKey]).map(String) : [];
 
-    let unscheduledSites = initialSites.filter(site => !scheduledSiteIds.includes(site.id));
-    let scheduledSites = initialSites.filter(site => scheduledSiteIds.includes(site.id));
+    let unscheduledSites = allSites.filter(site => !scheduledSiteIds.includes(String(site.id)));
+    let scheduledSites = allSites.filter(site => scheduledSiteIds.includes(String(site.id)));
 
     if (siteSearchTerm) {
-        unscheduledSites = unscheduledSites.filter(site =>
-            site.name.toLowerCase().includes(siteSearchTerm.toLowerCase())
-        );
-        scheduledSites = scheduledSites.filter(site =>
-            site.name.toLowerCase().includes(siteSearchTerm.toLowerCase())
-        );
+        const term = siteSearchTerm.toLowerCase();
+        unscheduledSites = unscheduledSites.filter(site => site.name.toLowerCase().includes(term));
+        scheduledSites = scheduledSites.filter(site => site.name.toLowerCase().includes(term));
     }
 
     const displayedUnscheduledSites = unscheduledSites.slice(0, 5);
@@ -269,30 +308,34 @@ export default function Scheduler() {
                             />
                         </div>
 
-                        <div className="flex-1 grid grid-cols-2 gap-4 overflow-y-auto">
-                            {/* Unscheduled Sites */}
-                            <div className="border rounded-lg p-3">
-                                <h3 className="font-semibold text-center border-b pb-2 mb-2">หน่วยงานที่ยังไม่จัดตารางงาน</h3>
-                                <div className="space-y-2">
-                                    {displayedUnscheduledSites.length > 0 ? displayedUnscheduledSites.map(site => (
-                                        <button key={`unscheduled-site-${site.id}`} onClick={() => handleSiteSelect(site)} className="w-full text-left p-3 bg-gray-100 hover:bg-indigo-100 rounded-lg">
-                                            {site.name}
-                                        </button>
-                                    )) : <p className="text-center text-gray-500 text-sm p-4">ไม่มี</p>}
+                        {isLoading ? (
+                            <div className="text-center py-4">กำลังโหลดข้อมูล...</div>
+                        ) : (
+                            <div className="flex-1 grid grid-cols-2 gap-4 overflow-y-auto">
+                                {/* Unscheduled Sites */}
+                                <div className="border rounded-lg p-3">
+                                    <h3 className="font-semibold text-center border-b pb-2 mb-2">หน่วยงานที่ยังไม่จัดตารางงาน</h3>
+                                    <div className="space-y-2">
+                                        {displayedUnscheduledSites.length > 0 ? displayedUnscheduledSites.map(site => (
+                                            <button key={`unscheduled-site-${site.id}`} onClick={() => handleSiteSelect(site)} className="w-full text-left p-3 bg-gray-100 hover:bg-indigo-100 rounded-lg">
+                                                {site.name}
+                                            </button>
+                                        )) : <p className="text-center text-gray-500 text-sm p-4">ไม่มี</p>}
+                                    </div>
+                                </div>
+                                {/* Scheduled Sites */}
+                                <div className="border rounded-lg p-3">
+                                    <h3 className="font-semibold text-center border-b pb-2 mb-2 text-green-700">หน่วยงานที่จัดแล้ว</h3>
+                                    <div className="space-y-2">
+                                        {displayedScheduledSites.length > 0 ? displayedScheduledSites.map(site => (
+                                            <button key={`scheduled-site-${site.id}`} onClick={() => handleSiteSelect(site)} className="w-full text-left p-3 bg-green-100 hover:bg-green-200 rounded-lg">
+                                                {site.name}
+                                            </button>
+                                        )) : <p className="text-center text-gray-500 text-sm p-4">ไม่มี</p>}
+                                    </div>
                                 </div>
                             </div>
-                            {/* Scheduled Sites */}
-                            <div className="border rounded-lg p-3">
-                                <h3 className="font-semibold text-center border-b pb-2 mb-2 text-green-700">หน่วยงานที่จัดแล้ว</h3>
-                                <div className="space-y-2">
-                                    {displayedScheduledSites.length > 0 ? displayedScheduledSites.map(site => (
-                                        <button key={`scheduled-site-${site.id}`} onClick={() => handleSiteSelect(site)} className="w-full text-left p-3 bg-green-100 hover:bg-green-200 rounded-lg">
-                                            {site.name}
-                                        </button>
-                                    )) : <p className="text-center text-gray-500 text-sm p-4">ไม่มี</p>}
-                                </div>
-                            </div>
-                        </div>
+                        )}
                         <button onClick={() => { setIsSiteModalOpen(false); setSiteSearchTerm(''); }} className="mt-4 w-full p-2 bg-red-500 text-white rounded-lg flex-shrink-0">ปิด</button>
                     </div>
                 </div>
@@ -414,7 +457,7 @@ export default function Scheduler() {
 
                         {!showManualInput ? (
                             <div className="space-y-2">
-                                {selectedSite?.contractedServices.map(service => (
+                                {selectedSite?.contractedServices?.map(service => (
                                     <button
                                         key={`position-select-${service.id}`}
                                         onClick={() => handlePositionSelect(service.position)}

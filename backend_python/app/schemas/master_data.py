@@ -7,6 +7,7 @@ from datetime import datetime
 # ========== CUSTOMER SCHEMAS ==========
 
 class CustomerCreate(BaseModel):
+    code: str = Field(..., min_length=1) # เพิ่ม Code
     name: str = Field(..., min_length=1)
     contactPerson: Optional[str] = None
     phone: Optional[str] = None
@@ -16,6 +17,7 @@ class CustomerCreate(BaseModel):
 
 
 class CustomerUpdate(BaseModel):
+    code: Optional[str] = None # เพิ่ม Code
     name: Optional[str] = None
     contactPerson: Optional[str] = None
     phone: Optional[str] = None
@@ -26,6 +28,7 @@ class CustomerUpdate(BaseModel):
 
 class CustomerResponse(BaseModel):
     id: str
+    code: str # เพิ่ม Code
     name: str
     contactPerson: Optional[str] = None
     phone: Optional[str] = None
@@ -84,7 +87,7 @@ class SiteResponse(BaseModel):
 # ========== GUARD/STAFF SCHEMAS ==========
 
 class GuardCreate(BaseModel):
-    guardId: str = Field(..., min_length=1)  # รหัสพนักงาน
+    guardId: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
     phone: Optional[str] = None
     address: Optional[str] = None
@@ -115,7 +118,7 @@ class GuardResponse(BaseModel):
     createdAt: Optional[datetime] = None
 
 
-# Staff uses same schemas as Guard (they're similar)
+# Staff uses same schemas as Guard
 StaffCreate = GuardCreate
 StaffUpdate = GuardUpdate
 StaffResponse = GuardResponse
@@ -140,3 +143,44 @@ class BankResponse(BaseModel):
     code: str
     name: str
     shortNameEN: str
+
+# ========== PRODUCT SCHEMAS ==========
+
+class ProductCreate(BaseModel):
+    code: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+    category: Optional[str] = None
+    price: float = 0.0
+    isActive: bool = True
+
+class ProductUpdate(BaseModel):
+    code: Optional[str] = None
+    name: Optional[str] = None
+    category: Optional[str] = None
+    price: Optional[float] = None
+    isActive: Optional[bool] = None
+
+class ProductResponse(BaseModel):
+    id: str
+    code: str
+    name: str
+    category: Optional[str] = None
+    price: float
+    isActive: bool
+    createdAt: Optional[datetime] = None
+
+# ========== SERVICE SCHEMAS ==========
+
+class ServiceCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    isActive: bool = True
+
+class ServiceUpdate(BaseModel):
+    name: Optional[str] = None
+    isActive: Optional[bool] = None
+
+class ServiceResponse(BaseModel):
+    id: str
+    name: str
+    isActive: bool
+    createdAt: Optional[datetime] = None

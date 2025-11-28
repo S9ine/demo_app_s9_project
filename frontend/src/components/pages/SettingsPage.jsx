@@ -1,95 +1,59 @@
-// =================================================================================
-// ส่วนของการ Import
-// =================================================================================
+// frontend/src/components/pages/SettingsPage.jsx
 import React, { useState, useEffect } from 'react';
-// - useState: Hook สำหรับสร้างและจัดการ state ภายใน Component
-// - useEffect: Hook สำหรับจัดการ Side Effect เช่น การ fetch ข้อมูล หรือการทำงานหลังจากที่ Component render เสร็จ
+import api from '../../config/api';
+import { ALL_PAGES } from '../../data/mockData';
+import ConfirmationModal from '../modals/ConfirmationModal';
+import { Users, List, Shield, KeyRound, PlusCircle, Edit, Trash2, Eye, EyeOff } from 'lucide-react'; // เพิ่ม Eye, EyeOff
 
-import { ALL_PAGES, initialRoles, initialUsers, initialBanks } from '../../data/mockData';
-// - นำเข้าข้อมูลจำลอง (Mock Data) มาใช้ เพื่อให้เห็นภาพการทำงานโดยไม่ต้องต่อ API จริง
-
-import { Users, List, Shield, KeyRound, PlusCircle, Edit, Trash2, AlertTriangle } from 'lucide-react';
-// - นำเข้าไอคอนสวยๆ จาก Library ที่ชื่อว่า lucide-react เพื่อใช้ประกอบ UI
-
-// =================================================================================
-// Reusable Components (ส่วนประกอบที่ใช้ซ้ำ)
-// =================================================================================
-
-// Component นี้คือ Modal ยืนยันการกระทำต่างๆ เช่น การลบข้อมูล
-function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }) {
-    // ถ้า prop 'isOpen' เป็น false, Component จะไม่แสดงผลอะไรเลย (return null)
-    // เป็น Pattern ที่ดีในการควบคุมการแสดงผล
-    if (!isOpen) return null;
-
-    return (
-        // `z-[60]` ทำให้ Modal แสดงอยู่ชั้นบนสุด
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-                <div className="flex items-start">
-                    {/* ไอคอนเตือนเพื่อดึงดูดสายตา */}
-                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
-                    </div>
-                    {/* แสดง Title และ Message ที่ได้รับมาจาก props */}
-                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                        <h3 className="text-lg leading-6 font-medium text-gray-900">{title}</h3>
-                        <div className="mt-2"><p className="text-sm text-gray-500">{message}</p></div>
-                    </div>
-                </div>
-                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                    {/* ปุ่ม 'ยืนยัน' จะเรียกใช้ฟังก์ชัน onConfirm ที่ส่งเข้ามา */}
-                    <button type="button" onClick={onConfirm} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">ยืนยัน</button>
-                    {/* ปุ่ม 'ยกเลิก' จะเรียกใช้ฟังก์ชัน onClose เพื่อปิด Modal */}
-                    <button type="button" onClick={onClose} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm">ยกเลิก</button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// =================================================================================
-// Local Components (ส่วนประกอบย่อยที่ใช้เฉพาะในหน้านี้)
-// =================================================================================
+// ... (BankFormModal และ RoleFormModal เหมือนเดิม ไม่ต้องแก้) ...
 
 // Form Modal สำหรับ 'เพิ่ม' หรือ 'แก้ไข' ข้อมูลธนาคาร
 function BankFormModal({ isOpen, onClose, onSave, bank }) {
-    // State สำหรับเก็บข้อมูลในฟอร์ม
     const [formData, setFormData] = useState({ code: '', name: '', shortNameEN: '' });
 
-    // useEffect จะทำงานเมื่อ prop 'bank' หรือ 'isOpen' เปลี่ยนแปลง
-    // - ถ้ามีการส่ง 'bank' เข้ามา (ตอนแก้ไข) -> จะ set formData เป็นข้อมูลของธนาคารนั้น
-    // - ถ้าไม่ (ตอนเพิ่มใหม่) -> จะ set formData เป็นค่าว่าง
-    // - การใส่ isOpen ใน dependency array ([bank, isOpen]) ทำให้ฟอร์มถูกรีเซ็ตทุกครั้งที่ Modal เปิดขึ้นมาใหม่
     useEffect(() => {
         setFormData(bank ? { code: bank.code, name: bank.name, shortNameEN: bank.shortNameEN } : { code: '', name: '', shortNameEN: '' });
     }, [bank, isOpen]);
 
     if (!isOpen) return null;
 
-    // ฟังก์ชันสำหรับอัปเดต state เมื่อผู้ใช้พิมพ์ใน input
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // ฟังก์ชันเมื่อกด Submit Form
     const handleSubmit = (e) => {
-        e.preventDefault(); // ป้องกันการ reload หน้าเว็บ
-        onSave({ ...bank, ...formData }); // ส่งข้อมูลที่อัปเดตแล้วกลับไปให้ Component แม่ ผ่านฟังก์ชัน onSave
-        onClose(); // ปิด Modal
+        e.preventDefault();
+        onSave({ id: bank?.id, ...formData });
+        onClose();
     };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
                 <form onSubmit={handleSubmit}>
-                    {/* แสดงหัวเรื่องตามเงื่อนไข ว่าเป็นการ 'แก้ไข' หรือ 'เพิ่ม' */}
                     <h2 className="text-xl font-bold mb-4">{bank ? 'แก้ไขข้อมูลธนาคาร' : 'เพิ่มธนาคารใหม่'}</h2>
-                    {/* Input fields ต่างๆ */}
                     <div className="space-y-4">
-                        <div><label className="block text-sm font-medium text-gray-700">Code ธนาคาร</label><input type="text" name="code" value={formData.code} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required /></div>
-                        <div><label className="block text-sm font-medium text-gray-700">ชื่อธนาคาร</label><input type="text" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required /></div>
-                        <div><label className="block text-sm font-medium text-gray-700">อักษรย่อ (EN)</label><input type="text" name="shortNameEN" value={formData.shortNameEN} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required /></div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Code ธนาคาร</label>
+                            <input
+                                type="text"
+                                name="code"
+                                value={formData.code}
+                                onChange={handleChange}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                                required
+                                disabled={!!bank}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">ชื่อธนาคาร</label>
+                            <input type="text" name="name" value={formData.name} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">อักษรย่อ (EN)</label>
+                            <input type="text" name="shortNameEN" value={formData.shortNameEN} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                        </div>
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md">ยกเลิก</button>
@@ -103,17 +67,15 @@ function BankFormModal({ isOpen, onClose, onSave, bank }) {
 
 // Form Modal สำหรับ 'เพิ่ม' Role ใหม่
 function RoleFormModal({ isOpen, onClose, onSave }) {
-    // State สำหรับเก็บชื่อ Role ที่กำลังจะเพิ่ม
     const [roleName, setRoleName] = useState('');
     if (!isOpen) return null;
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // trim() เพื่อตัดช่องว่างหน้า-หลัง ออกจากชื่อ Role
         if (roleName.trim()) {
-            onSave(roleName.trim()); // ส่งชื่อ Role ใหม่ไปบันทึก
-            setRoleName(''); // เคลียร์ input
-            onClose(); // ปิด Modal
+            onSave(roleName.trim());
+            setRoleName('');
+            onClose();
         }
     };
 
@@ -136,26 +98,48 @@ function RoleFormModal({ isOpen, onClose, onSave }) {
     );
 }
 
-// Form Modal สำหรับ 'เพิ่ม' หรือ 'แก้ไข' ผู้ใช้งาน
+// --- ส่วนที่แก้ไข UserFormModal ---
 function UserFormModal({ isOpen, onClose, onSave, user, roles }) {
-    // State สำหรับเก็บข้อมูลในฟอร์ม
     const [formData, setFormData] = useState({ username: '', password: '', roleId: '', firstName: '', lastName: '', email: '' });
+    // เพิ่ม State สำหรับปุ่มดูรหัสผ่าน
+    const [showPassword, setShowPassword] = useState(false);
 
-    // useEffect ทำงานคล้ายกับ BankFormModal
-    // - ถ้ามี 'user' (แก้ไข) -> set state ตามข้อมูล user
-    // - ถ้าไม่มี 'user' (เพิ่มใหม่) -> set state เป็นค่าว่าง และกำหนด roleId เริ่มต้นเป็น Role แรกที่มีในระบบ
     useEffect(() => {
         if (user) {
-            setFormData({ username: user.username, password: user.password, roleId: user.roleId, firstName: user.firstName, lastName: user.lastName, email: user.email });
+            setFormData({
+                username: user.username,
+                password: '',
+                roleId: user.roleId,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                email: user.email
+            });
         } else {
-            setFormData({ username: '', password: '', roleId: roles[0]?.id || '', firstName: '', lastName: '', email: '' });
+            setFormData({
+                username: '',
+                password: '',
+                roleId: roles[0]?.id || '',
+                firstName: '',
+                lastName: '',
+                email: ''
+            });
         }
+        // รีเซ็ตการแสดงรหัสผ่านทุกครั้งที่เปิด Modal
+        setShowPassword(false);
     }, [user, isOpen, roles]);
 
     if (!isOpen) return null;
 
-    const handleChange = (e) => { const { name, value } = e.target; setFormData(prev => ({ ...prev, [name]: value })); };
-    const handleSubmit = (e) => { e.preventDefault(); onSave({ ...user, ...formData }); onClose(); };
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave({ ...user, ...formData });
+        onClose();
+    };
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -163,115 +147,204 @@ function UserFormModal({ isOpen, onClose, onSave, user, roles }) {
                 <form onSubmit={handleSubmit}>
                     <h2 className="text-xl font-bold mb-4">{user ? 'แก้ไขผู้ใช้' : 'เพิ่มผู้ใช้ใหม่'}</h2>
                     <div className="space-y-4">
-                        {/* Input fields ต่างๆ */}
-                        <div><label className="block text-sm font-medium text-gray-700">Username</label><input type="text" name="username" value={formData.username} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required /></div>
-                        <div><label className="block text-sm font-medium text-gray-700">Password</label><input type="password" name="password" value={formData.password} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required /></div>
-                        {/* Dropdown สำหรับเลือก Role โดยดึงข้อมูลมาจาก prop 'roles' */}
-                        <div><label className="block text-sm font-medium text-gray-700">Role</label><select name="roleId" value={formData.roleId} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">{roles.map(role => (<option key={role.id} value={role.id}>{role.name}</option>))}</select></div>
-                        <div><label className="block text-sm font-medium text-gray-700">First name</label><input type="text" name="firstName" value={formData.firstName} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required /></div>
-                        <div><label className="block text-sm font-medium text-gray-700">Last name</label><input type="text" name="lastName" value={formData.lastName} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required /></div>
-                        <div><label className="block text-sm font-medium text-gray-700">Email</label><input type="text" name="email" value={formData.email} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required /></div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Username</label>
+                            <input type="text" name="username" value={formData.username} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                        </div>
+
+                        {/* ช่อง Password พร้อมปุ่ม Toggle */}
+                        <div className="relative">
+                            <label className="block text-sm font-medium text-gray-700">Password {user && <span className="text-gray-400 text-xs">(เว้นว่างหากไม่ต้องการเปลี่ยน)</span>}</label>
+                            <input
+                                type={showPassword ? "text" : "password"} // สลับ type
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md pr-10" // pr-10 เว้นที่ให้ไอคอน
+                                required={!user}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-8 text-gray-500 hover:text-gray-700 focus:outline-none"
+                            >
+                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Role</label>
+                            <select name="roleId" value={formData.roleId} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                                {roles.map(role => (<option key={role.id} value={role.id}>{role.name}</option>))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">First name</label>
+                            <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Last name</label>
+                            <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Email</label>
+                            <input type="text" name="email" value={formData.email} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        </div>
                     </div>
-                    <div className="mt-6 flex justify-end space-x-3"><button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md">ยกเลิก</button><button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md">บันทึก</button></div>
+                    <div className="mt-6 flex justify-end space-x-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md">ยกเลิก</button>
+                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md">บันทึก</button>
+                    </div>
                 </form>
             </div>
         </div>
     );
 }
 
-// =================================================================================
-// Feature Components (ส่วนประกอบหลักของแต่ละฟีเจอร์)
-// =================================================================================
+// ... (ส่วนที่เหลือของ SettingsPage เหมือนเดิมทุกประการ) ...
 
 // Component สำหรับจัดการ Role, สิทธิ์ และ User
 function UserSettings() {
-    // --- State Management ---
-    // state ทั้งหมดที่ใช้ในส่วนนี้ ถูกจัดการที่นี่ที่เดียว ซึ่งเป็นวิธีที่ดี
-    const [roles, setRoles] = useState(initialRoles);
-    const [users, setUsers] = useState(initialUsers);
-    const [selectedRole, setSelectedRole] = useState(roles[0]); // เก็บ Role ที่กำลังถูกเลือก
-    // state สำหรับควบคุมการเปิด-ปิด Modal ต่างๆ
+    // State
+    const [roles, setRoles] = useState([]);
+    const [users, setUsers] = useState([]);
+    const [selectedRole, setSelectedRole] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Modal States
     const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState(null); // เก็บข้อมูล user ที่กำลังจะแก้ไข
+    const [editingUser, setEditingUser] = useState(null);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [isRoleConfirmOpen, setIsRoleConfirmOpen] = useState(false);
-    const [roleToDelete, setRoleToDelete] = useState(null); // เก็บข้อมูล role ที่กำลังจะลบ
+    const [roleToDelete, setRoleToDelete] = useState(null);
     const [isUserConfirmOpen, setIsUserConfirmOpen] = useState(false);
-    const [userToDelete, setUserToDelete] = useState(null); // เก็บข้อมูล user ที่กำลังจะลบ
+    const [userToDelete, setUserToDelete] = useState(null);
 
-    // --- Handler Functions ---
-    // ฟังก์ชันจัดการเมื่อมีการติ๊ก checkbox เปลี่ยนสิทธิ์
+    // Initial Fetch
+    const fetchUsersAndRoles = async () => {
+        setIsLoading(true);
+        try {
+            const [rolesRes, usersRes] = await Promise.all([
+                api.get('/users/roles/all'),
+                api.get('/users')
+            ]);
+            setRoles(rolesRes.data);
+            setUsers(usersRes.data);
+
+            // Set selected role logic
+            if (!selectedRole && rolesRes.data.length > 0) {
+                // Default to Admin or first role
+                setSelectedRole(rolesRes.data.find(r => r.name === 'Admin') || rolesRes.data[0]);
+            } else if (selectedRole) {
+                // Keep selected role updated
+                const updatedRole = rolesRes.data.find(r => r.id === selectedRole.id);
+                if (updatedRole) setSelectedRole(updatedRole);
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchUsersAndRoles();
+    }, []);
+
+    // --- Role & Permissions Handlers ---
+
     const handlePermissionChange = (pageId, isChecked) => {
+        if (!selectedRole) return;
+
         setSelectedRole(prevRole => {
             const newPermissions = isChecked
-                ? [...prevRole.permissions, pageId] // ถ้าติ๊กถูก -> เพิ่ม pageId เข้าไปใน array
-                : prevRole.permissions.filter(p => p !== pageId); // ถ้าติ๊กออก -> เอา pageId ออก
+                ? [...prevRole.permissions, pageId]
+                : prevRole.permissions.filter(p => p !== pageId);
             return { ...prevRole, permissions: newPermissions };
         });
     };
 
-    // ฟังก์ชันบันทึกสิทธิ์ของ Role ที่เลือก
-    const handleSaveRolePermissions = () => {
-        // อัปเดต state 'roles' โดยหา role ที่มี id ตรงกับ 'selectedRole' แล้วแทนที่ด้วยข้อมูลใหม่
-        setRoles(prevRoles => prevRoles.map(r => r.id === selectedRole.id ? selectedRole : r));
-        alert("บันทึกสิทธิ์เรียบร้อยแล้ว");
-    };
-
-    // ฟังก์ชันบันทึกข้อมูล User (ทั้งเพิ่มใหม่และแก้ไข)
-    const handleSaveUser = (userData) => {
-        if (userData.id) { // ถ้ามี id -> แก้ไข
-            setUsers(users.map(u => u.id === userData.id ? userData : u));
-        } else { // ถ้าไม่มี id -> เพิ่มใหม่
-            setUsers([...users, { ...userData, id: Date.now() }]); // ใช้ Date.now() เป็น id ชั่วคราว
+    const handleSaveRolePermissions = async () => {
+        if (!selectedRole) return;
+        try {
+            await api.put(`/users/roles/${selectedRole.id}`, {
+                name: selectedRole.name,
+                permissions: selectedRole.permissions
+            });
+            alert("บันทึกสิทธิ์เรียบร้อยแล้ว");
+            fetchUsersAndRoles();
+        } catch (error) {
+            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์');
         }
     };
 
-    // ฟังก์ชันเปิด Modal สำหรับจัดการ User
-    const openUserModal = (user = null) => {
-        setEditingUser(user); // ถ้ามี user คือการแก้ไข, ถ้าเป็น null คือการเพิ่มใหม่
-        setIsUserModalOpen(true);
+    const handleSaveRole = async (roleName) => {
+        try {
+            await api.post('/users/roles', { name: roleName, permissions: [] });
+            fetchUsersAndRoles();
+        } catch (error) {
+            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการสร้าง Role');
+        }
     };
 
-    // ฟังก์ชันบันทึก Role ใหม่
-    const handleSaveRole = (roleName) => {
-        const newRole = { id: Date.now(), name: roleName, permissions: [] };
-        setRoles([...roles, newRole]);
-    };
-
-    // ฟังก์ชันเปิด Modal ยืนยันการลบ Role
     const openDeleteRoleConfirm = (role) => {
-        // ป้องกันการลบ Role 'Admin'
         if (role.name === 'Admin') {
             alert('ไม่สามารถลบ Role "Admin" ได้');
-            return;
-        }
-        // ตรวจสอบว่ามี User คนไหนใช้ Role นี้อยู่หรือไม่
-        const isRoleInUse = users.some(user => user.roleId === role.id);
-        if (isRoleInUse) {
-            alert(`ไม่สามารถลบ Role "${role.name}" ได้ เนื่องจากมีผู้ใช้งานอยู่ใน Role นี้`);
             return;
         }
         setRoleToDelete(role);
         setIsRoleConfirmOpen(true);
     };
 
-    // ฟังก์ชันยืนยันการลบ Role
-    const confirmDeleteRole = () => {
+    const confirmDeleteRole = async () => {
         if (roleToDelete) {
-            // กรอง Role ที่จะลบออกจาก array
-            setRoles(roles.filter(role => role.id !== roleToDelete.id));
-            // ถ้า Role ที่ลบเป็น Role ที่กำลังเลือกอยู่ ให้เปลี่ยนไปเลือก Role แรกแทน
-            if (selectedRole.id === roleToDelete.id) {
-                setSelectedRole(roles[0] || null);
+            try {
+                await api.delete(`/users/roles/${roleToDelete.id}`);
+                fetchUsersAndRoles();
+                if (selectedRole?.id === roleToDelete.id) setSelectedRole(null);
+                setIsRoleConfirmOpen(false);
+                setRoleToDelete(null);
+            } catch (error) {
+                alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการลบ Role');
             }
         }
-        setIsRoleConfirmOpen(false);
-        setRoleToDelete(null);
     };
 
-    // ฟังก์ชันเปิด Modal ยืนยันการลบ User
+    // --- User Handlers ---
+
+    const handleSaveUser = async (userData) => {
+        try {
+            const payload = {
+                username: userData.username,
+                firstName: userData.firstName,
+                lastName: userData.lastName,
+                email: userData.email || null,
+                roleId: userData.roleId,
+                isActive: userData.isActive !== undefined ? userData.isActive : true
+            };
+
+            // Only send password if provided (for update) or required (for create)
+            if (userData.password) {
+                payload.password = userData.password;
+            }
+
+            if (userData.id) {
+                await api.put(`/users/${userData.id}`, payload);
+            } else {
+                await api.post('/users', payload);
+            }
+            fetchUsersAndRoles();
+        } catch (error) {
+            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกผู้ใช้');
+        }
+    };
+
+    const openUserModal = (user = null) => {
+        setEditingUser(user);
+        setIsUserModalOpen(true);
+    };
+
     const openDeleteUserConfirm = (user) => {
-        // ป้องกันการลบ User 'admin'
         if (user.username === 'admin') {
             alert('ไม่สามารถลบผู้ใช้ "admin" ได้');
             return;
@@ -280,16 +353,21 @@ function UserSettings() {
         setIsUserConfirmOpen(true);
     };
 
-    // ฟังก์ชันยืนยันการลบ User
-    const confirmDeleteUser = () => {
+    const confirmDeleteUser = async () => {
         if (userToDelete) {
-            setUsers(users.filter(user => user.id !== userToDelete.id));
+            try {
+                await api.delete(`/users/${userToDelete.id}`);
+                fetchUsersAndRoles();
+                setIsUserConfirmOpen(false);
+                setUserToDelete(null);
+            } catch (error) {
+                alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการลบผู้ใช้');
+            }
         }
-        setIsUserConfirmOpen(false);
-        setUserToDelete(null);
     };
 
-    // --- JSX Rendering ---
+    if (isLoading) return <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>;
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
             {/* ส่วนจัดการ Role */}
@@ -308,7 +386,6 @@ function UserSettings() {
                                     <button onClick={() => setSelectedRole(role)} className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${selectedRole?.id === role.id ? 'bg-indigo-500 text-white' : 'hover:bg-gray-100'}`}>
                                         {role.name}
                                     </button>
-                                    {/* ปุ่มลบจะแสดงเมื่อเอาเมาส์ไปชี้ และจะไม่แสดงสำหรับ Role 'Admin' */}
                                     {role.name !== 'Admin' && (
                                         <button onClick={() => openDeleteRoleConfirm(role)} className="ml-2 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <Trash2 className="w-4 h-4" />
@@ -356,7 +433,7 @@ function UserSettings() {
                             {users.map(user => (
                                 <tr key={user.id} className="hover:bg-gray-50 border-b">
                                     <td className="p-2">{user.username}</td>
-                                    <td className="p-2"><span className="px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">{roles.find(r => r.id === user.roleId)?.name}</span></td>  
+                                    <td className="p-2"><span className="px-2 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-800">{user.role}</span></td>
                                     <td className="p-2 flex space-x-2">
                                         <button onClick={() => openUserModal(user)} className="text-blue-500 hover:text-blue-700"><Edit className="w-4 h-4" /></button>
                                         <button onClick={() => openDeleteUserConfirm(user)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
@@ -367,7 +444,7 @@ function UserSettings() {
                     </table>
                 </div>
             </div>
-            {/* เรียกใช้ Modal ต่างๆ และส่ง props ที่จำเป็นเข้าไป */}
+
             <UserFormModal isOpen={isUserModalOpen} onClose={() => setIsUserModalOpen(false)} onSave={handleSaveUser} user={editingUser} roles={roles} />
             <RoleFormModal isOpen={isRoleModalOpen} onClose={() => setIsRoleModalOpen(false)} onSave={handleSaveRole} />
             <ConfirmationModal isOpen={isRoleConfirmOpen} onClose={() => setIsRoleConfirmOpen(false)} onConfirm={confirmDeleteRole} title="ยืนยันการลบ Role" message={`คุณแน่ใจหรือไม่ว่าต้องการลบ Role "${roleToDelete?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`} />
@@ -378,33 +455,62 @@ function UserSettings() {
 
 // Component สำหรับจัดการข้อมูล Dropdown ต่างๆ
 function DropdownSettings() {
-    // State Management สำหรับส่วนนี้
-    const [banks, setBanks] = useState(initialBanks);
+    const [banks, setBanks] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBank, setEditingBank] = useState(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [bankToDelete, setBankToDelete] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // --- Handler Functions --- (ทำงานคล้ายกับ UserSettings)
+    const fetchBanks = async () => {
+        setIsLoading(true);
+        try {
+            const response = await api.get('/banks');
+            setBanks(response.data);
+        } catch (error) {
+            console.error('Error fetching banks:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchBanks();
+    }, []);
+
     const handleOpenModal = (bank = null) => { setEditingBank(bank); setIsModalOpen(true); };
     const handleCloseModal = () => { setEditingBank(null); setIsModalOpen(false); };
-    const handleSaveBank = (bankData) => {
-        if (bankData.id) { // แก้ไข
-            setBanks(banks.map(b => b.id === bankData.id ? bankData : b));
-        } else { // เพิ่มใหม่
-            setBanks([...banks, { ...bankData, id: Date.now() }]);
+
+    const handleSaveBank = async (bankData) => {
+        try {
+            if (bankData.id) {
+                await api.put(`/banks/${bankData.id}`, bankData);
+            } else {
+                await api.post('/banks', bankData);
+            }
+            fetchBanks();
+        } catch (error) {
+            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
         }
-    };
-    const handleOpenDeleteConfirm = (bank) => { setBankToDelete(bank); setIsConfirmOpen(true); };
-    const handleDeleteBank = () => {
-        if (bankToDelete) {
-            setBanks(banks.filter(b => b.id !== bankToDelete.id));
-        }
-        setIsConfirmOpen(false);
-        setBankToDelete(null);
     };
 
-    // --- JSX Rendering ---
+    const handleOpenDeleteConfirm = (bank) => { setBankToDelete(bank); setIsConfirmOpen(true); };
+
+    const handleDeleteBank = async () => {
+        if (bankToDelete) {
+            try {
+                await api.delete(`/banks/${bankToDelete.id}`);
+                fetchBanks();
+                setIsConfirmOpen(false);
+                setBankToDelete(null);
+            } catch (error) {
+                alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการลบข้อมูล');
+            }
+        }
+    };
+
+    if (isLoading) return <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>;
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
             {/* ส่วนจัดการข้อมูลธนาคาร */}
@@ -438,7 +544,7 @@ function DropdownSettings() {
                 <h2 className="text-xl font-semibold text-gray-400">จัดการคำนำหน้าชื่อ...</h2>
                 <p className="text-gray-400 mt-2">เร็วๆ นี้</p>
             </div>
-            {/* เรียกใช้ Modal */}
+
             <BankFormModal isOpen={isModalOpen} onClose={handleCloseModal} onSave={handleSaveBank} bank={editingBank} />
             <ConfirmationModal isOpen={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} onConfirm={handleDeleteBank} title="ยืนยันการลบธนาคาร" message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูล "${bankToDelete?.name}"?`} />
         </div>
@@ -449,29 +555,21 @@ function DropdownSettings() {
 // Main Component (ส่วนประกอบหลักของหน้านี้)
 // =================================================================================
 
-// สร้าง Object 'TABS' เพื่อเก็บชื่อแท็บ ช่วยลดการ hardcode string และทำให้แก้ไขง่าย
 const TABS = {
     USER_SETTINGS: 'ตั้งค่า User',
     DROPDOWN_SETTINGS: 'ตั้งค่า Dropdown',
 };
 
-// Component หลักของหน้า Settings
 export default function SettingsPage() {
-    // State สำหรับเก็บว่าแท็บไหนกำลังถูกเลือกอยู่
     const [activeTab, setActiveTab] = useState(TABS.USER_SETTINGS);
 
-    // สร้างเป็น Sub-component ย่อยสำหรับปุ่ม Tab เพื่อให้โค้ดส่วน return หลักดูสะอาดตา
     const TabButton = ({ label, icon: Icon, isActive }) => (
         <button
             onClick={() => setActiveTab(label)}
-            // การใช้ Template literals (``) เพื่อกำหนด class แบบมีเงื่อนไข
-            // ถ้า 'isActive' เป็น true จะใช้ class ของแท็บที่ถูกเลือก
-            // ถ้าเป็น false จะใช้ class ของแท็บปกติ
-            className={`flex items-center px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                isActive
+            className={`flex items-center px-4 py-3 text-sm font-medium border-b-2 transition-colors ${isActive
                     ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
+                }`}
         >
             <Icon className="w-5 h-5 mr-2" />
             <span>{label}</span>
@@ -488,7 +586,6 @@ export default function SettingsPage() {
             </div>
             {/* ส่วนแสดงเนื้อหาของ Tab ที่เลือก */}
             <div>
-                {/* ใช้ Conditional Rendering: ถ้า activeTab ตรงกับ USER_SETTINGS ก็ให้แสดง Component UserSettings */}
                 {activeTab === TABS.USER_SETTINGS && <UserSettings />}
                 {activeTab === TABS.DROPDOWN_SETTINGS && <DropdownSettings />}
             </div>

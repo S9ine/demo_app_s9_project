@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react'; // นำเข้าไอคอน
 
-// เพิ่ม props `isLoading` เข้ามา
 export default function LoginScreen({ handleLogin, username, setUsername, password, setPassword, error, isLoading }) {
+    // State สำหรับสลับการแสดงรหัสผ่าน
+    const [showPassword, setShowPassword] = useState(false);
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-gray-200">
             <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-2xl shadow-lg">
@@ -19,29 +22,35 @@ export default function LoginScreen({ handleLogin, username, setUsername, passwo
                                 placeholder="Username"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                disabled={isLoading} // disable input ขณะ loading
+                                disabled={isLoading}
                             />
                         </div>
-                        <div>
+                        <div className="relative">
                             <label className="text-sm font-bold text-gray-600 tracking-wide">รหัสผ่าน</label>
                             <input
-                                className="w-full content-center text-base px-4 py-2 border-b border-gray-400 focus:outline-none rounded-2xl focus:border-indigo-500"
-                                type="password"
+                                className="w-full content-center text-base px-4 py-2 border-b border-gray-400 focus:outline-none rounded-2xl focus:border-indigo-500 pr-10" // เพิ่ม pr-10 เว้นที่ให้ไอคอน
+                                type={showPassword ? "text" : "password"} // สลับ type
                                 placeholder="Password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                disabled={isLoading} // disable input ขณะ loading
+                                disabled={isLoading}
                             />
+                            {/* ปุ่มกดดูรหัสผ่าน */}
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-8 text-gray-500 hover:text-gray-700 focus:outline-none"
+                            >
+                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                            </button>
                         </div>
                     </div>
                     {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                     <div>
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             className="w-full flex justify-center bg-indigo-600 text-gray-100 p-3 rounded-full tracking-wide font-semibold shadow-lg cursor-pointer transition ease-in duration-300 hover:bg-indigo-700 disabled:bg-indigo-400"
-                            disabled={isLoading} // disable ปุ่มขณะ loading
-                        >
-                            {/* เปลี่ยนข้อความในปุ่มตามสถานะ isLoading */}
+                            disabled={isLoading}   >
                             {isLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ'}
                         </button>
                     </div>
