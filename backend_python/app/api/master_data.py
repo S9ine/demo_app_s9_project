@@ -46,7 +46,7 @@ async def get_customers(
     return [
         {
             "id": str(c.id),
-            "code": c.code, # ส่งค่า code จริงจาก DB
+            "code": c.code,
             "name": c.name,
             "contactPerson": c.contactPerson,
             "phone": c.phone,
@@ -72,13 +72,41 @@ async def create_customer(
         raise HTTPException(status_code=400, detail="รหัสลูกค้าซ้ำ (Customer Code already exists)")
 
     new_customer = Customer(
-        code=customer_data.code, # บันทึก code
+        code=customer_data.code,
         name=customer_data.name,
         contactPerson=customer_data.contactPerson,
         phone=customer_data.phone,
         email=customer_data.email,
         address=customer_data.address,
         isActive=customer_data.isActive
+    )
+    
+    db.add(new_customer)
+    await db.commit()
+    await db.refresh(new_customer)
+    
+    return {
+        "id": str(new_customer.id),
+        "code": new_customer.code,
+        "name": new_customer.name,
+        "contactPerson": new_customer.contactPerson,
+        "phone": new_customer.phone,
+        "email": new_customer.email,
+        "address": new_customer.address,
+        "isActive": new_customer.isActive,
+        "createdAt": new_customer.createdAt
+    }
+
+
+@router.get("/customers/{customer_id}", response_model=CustomerResponse)
+async def get_customer(
+    customer_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get customer by ID"""
+    try:
+        cid = int(customer_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid customer ID")
         
@@ -175,6 +203,11 @@ async def delete_customer(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
         
+    await db.delete(customer)
+    await db.commit()
+    
+    return {"message": "Customer deleted successfully"}
+
 
 # ========== SITE ENDPOINTS ==========
 
