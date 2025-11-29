@@ -16,7 +16,8 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
             useSameAddress: true,
             address: { street: '', subdistrict: '', district: '', province: '', zipcode: '' },
             paymentTerms: ''
-        }
+        },
+        error: null // Inline error state
     });
 
     useEffect(() => {
@@ -45,7 +46,8 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
                     useSameAddress: true,
                     address: { street: '', subdistrict: '', district: '', province: '', zipcode: '' },
                     paymentTerms: ''
-                }
+                },
+                error: null
             });
         } else {
             // กรณีเพิ่มใหม่: เคลียร์ค่าเป็นค่าว่าง
@@ -63,7 +65,8 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
                     useSameAddress: true,
                     address: { street: '', subdistrict: '', district: '', province: '', zipcode: '' },
                     paymentTerms: ''
-                }
+                },
+                error: null
             });
         }
     }, [customer, isOpen]);
@@ -110,7 +113,7 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
 
         // Validate รหัสลูกค้าไม่ให้มีช่องว่าง
         if (formData.code && formData.code.includes(' ')) {
-            alert('รหัสลูกค้าต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)');
+            setFormData(prev => ({ ...prev, error: 'รหัสลูกค้าต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)' }));
             return;
         }
 
@@ -159,23 +162,25 @@ export default function CustomerFormModal({ isOpen, onClose, customer, onSave })
                                             type="text"
                                             name="code"
                                             value={formData.code}
-                                            onChange={(e) => handleChange(e)}
-                                            onBlur={(e) => {
+                                            onChange={(e) => {
+                                                handleChange(e);
+                                                // Real-time validation
                                                 const value = e.target.value;
                                                 if (value && value.includes(' ')) {
-                                                    alert('รหัสลูกค้าต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)');
-                                                    e.target.focus();
+                                                    setFormData(prev => ({ ...prev, error: 'รหัสลูกค้าต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)' }));
                                                 } else if (value && !/^[\w\-]+$/.test(value)) {
-                                                    alert('รหัสลูกค้าต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น');
-                                                    e.target.focus();
+                                                    setFormData(prev => ({ ...prev, error: 'รหัสลูกค้าต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น' }));
+                                                } else {
+                                                    setFormData(prev => ({ ...prev, error: null }));
                                                 }
                                             }}
                                             pattern="[\w\-]+"
                                             title="รหัสลูกค้าต้องไม่มีช่องว่าง (ใช้ - หรือ _ แทน)"
-                                            className="w-full border p-2 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            className={`w-full border p-2 rounded-md focus:ring-indigo-500 focus:border-indigo-500 ${formData.error ? 'border-red-500' : ''}`}
                                             required
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">ตัวอย่าง: CUST-001, ABC_123 (ห้ามมีช่องว่าง)</p>
+                                        {formData.error && <p className="text-xs text-red-500 mt-1">{formData.error}</p>}
+                                        {!formData.error && <p className="text-xs text-gray-500 mt-1">ตัวอย่าง: CUST-001, ABC_123 (ห้ามมีช่องว่าง)</p>}
                                     </div>
                                     <div>
                                         <label className="block text-sm text-gray-700 mb-1">เลขประจำตัวผู้เสียภาษี</label>

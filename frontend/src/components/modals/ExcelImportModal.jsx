@@ -61,8 +61,17 @@ export default function ExcelImportModal({ isOpen, onClose, onSuccess }) {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            setResult(response.data);
-            if (response.data.success) {
+
+            // Backend returns: { message, success_count, skipped_count, errors: [] }
+            setResult({
+                success: true,
+                imported: response.data.success_count,
+                skipped: response.data.skipped_count,
+                errors: response.data.errors.length,
+                details: { errors: response.data.errors.map((e, i) => ({ row: 'N/A', reason: e })) }
+            });
+
+            if (response.data.success_count > 0 || response.data.skipped_count > 0) {
                 // Clear file input
                 setFile(null);
             }

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 import pandas as pd
 from io import BytesIO
 import os
@@ -96,6 +96,114 @@ async def create_customer(
         "isActive": new_customer.isActive,
         "createdAt": new_customer.createdAt
     }
+
+
+@router.get("/customers/template")
+async def download_customer_template(
+    current_user: User = Depends(get_current_active_user),
+):
+    """Download customer import template"""
+    # Create a DataFrame with the required columns
+    columns = ['code', 'name', 'contactPerson', 'phone', 'email', 'address', 'taxId', 'mapLink']
+    df = pd.DataFrame(columns=columns)
+    
+    # Create a buffer
+    buffer = BytesIO()
+    
+    try:
+        # Write to Excel
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Customers')
+            
+        headers = {
+            'Content-Disposition': 'attachment; filename="customer_template.xlsx"'
+        }
+        
+        return Response(content=buffer.getvalue(), headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    except Exception as e:
+        print(f"Error generating template: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate template: {str(e)}")
+
+
+@router.post("/customers/import")
+async def import_customers(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Import customers from Excel file"""
+    if not file.filename.endswith('.xlsx'):
+        raise HTTPException(status_code=400, detail="Invalid file format. Please upload .xlsx file")
+    
+    try:
+        contents = await file.read()
+        df = pd.read_excel(BytesIO(contents))
+        
+        # Required columns
+        required_columns = ['code', 'name']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            raise HTTPException(status_code=400, detail=f"Missing columns: {', '.join(missing_columns)}")
+        
+        # Helper to clean values
+        def clean_str(val):
+            if pd.isna(val) or val == 'nan' or val == 'NaN':
+                return None
+            s = str(val).strip()
+            return s if s else None
+        
+        success_count = 0
+        skipped_count = 0
+        errors = []
+        
+        for index, row in df.iterrows():
+            try:
+                code_val = row.get('code')
+                if pd.isna(code_val):
+                    continue
+                code = str(code_val).strip()
+                if not code:
+                    continue
+                    
+                # Check if customer exists
+                result = await db.execute(select(Customer).where(Customer.code == code))
+                if result.scalar_one_or_none():
+                    skipped_count += 1
+                    continue
+                
+                new_customer = Customer(
+                    code=code,
+                    name=clean_str(row.get('name')) or "Unknown",
+                    contactPerson=clean_str(row.get('contactPerson')),
+                    phone=clean_str(row.get('phone')),
+                    email=clean_str(row.get('email')),
+                    address=clean_str(row.get('address')),
+                    isActive=True
+                )
+                
+                # Optional fields if they exist in Excel
+                if 'taxId' in row:
+                    new_customer.taxId = clean_str(row['taxId'])
+                if 'mapLink' in row:
+                    new_customer.mapLink = clean_str(row['mapLink'])
+                
+                db.add(new_customer)
+                success_count += 1
+                
+            except Exception as e:
+                errors.append(f"Row {index + 2}: {str(e)}")
+        
+        await db.commit()
+        
+        return {
+            "message": "Import completed",
+            "success_count": success_count,
+            "skipped_count": skipped_count,
+            "errors": errors
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/customers/{customer_id}", response_model=CustomerResponse)
@@ -207,6 +315,34 @@ async def delete_customer(
     await db.commit()
     
     return {"message": "Customer deleted successfully"}
+
+
+@router.post("/customers/bulk-delete")
+async def bulk_delete_customers(
+    customer_ids: List[str],
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete multiple customers"""
+    try:
+        # Convert IDs to integers
+        ids = [int(id) for id in customer_ids]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid customer IDs")
+        
+    # Check if any customers exist
+    result = await db.execute(select(Customer).where(Customer.id.in_(ids)))
+    customers = result.scalars().all()
+    
+    if not customers:
+        raise HTTPException(status_code=404, detail="No customers found")
+        
+    for customer in customers:
+        await db.delete(customer)
+        
+    await db.commit()
+    
+    return {"message": f"Deleted {len(customers)} customers successfully"}
 
 
 # ========== SITE ENDPOINTS ==========
