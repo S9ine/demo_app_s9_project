@@ -16,10 +16,6 @@ export default function CustomerList() {
     const [customerToDelete, setCustomerToDelete] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Bulk Delete States
-    const [selectedIds, setSelectedIds] = useState([]);
-    const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
-
     // Pagination States
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -104,33 +100,6 @@ export default function CustomerList() {
         }
     };
 
-    const handleSelectAll = (e) => {
-        if (e.target.checked) {
-            setSelectedIds(customers.map(c => c.id));
-        } else {
-            setSelectedIds([]);
-        }
-    };
-
-    const handleSelectOne = (id) => {
-        if (selectedIds.includes(id)) {
-            setSelectedIds(selectedIds.filter(sid => sid !== id));
-        } else {
-            setSelectedIds([...selectedIds, id]);
-        }
-    };
-
-    const handleBulkDelete = async () => {
-        try {
-            await api.post('/customers/bulk-delete', selectedIds);
-            fetchCustomers();
-            setSelectedIds([]);
-            setIsBulkDeleteConfirmOpen(false);
-        } catch (error) {
-            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการลบข้อมูล');
-        }
-    };
-
     const paginatedCustomers = customers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     return (
@@ -138,15 +107,6 @@ export default function CustomerList() {
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">ข้อมูลลูกค้า</h1>
                 <div className="flex space-x-2">
-                    {selectedIds.length > 0 && (
-                        <button
-                            onClick={() => setIsBulkDeleteConfirmOpen(true)}
-                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center"
-                        >
-                            <Trash2 className="w-5 h-5 mr-2" />
-                            ลบที่เลือก ({selectedIds.length})
-                        </button>
-                    )}
                     <button
                         onClick={() => setIsImportModalOpen(true)}
                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
@@ -170,14 +130,6 @@ export default function CustomerList() {
                     <table className="w-full">
                         <thead>
                             <tr className="border-b">
-                                <th className="p-3 w-10">
-                                    <input
-                                        type="checkbox"
-                                        onChange={handleSelectAll}
-                                        checked={customers.length > 0 && selectedIds.length === customers.length}
-                                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                    />
-                                </th>
                                 <th className="text-left p-3">รหัส</th>
                                 <th className="text-left p-3">ชื่อลูกค้า</th>
                                 <th className="text-left p-3">ข้อมูลติดต่อ</th>
@@ -188,14 +140,6 @@ export default function CustomerList() {
                         <tbody>
                             {paginatedCustomers.map(c => (
                                 <tr key={c.id} className="hover:bg-gray-50 border-b">
-                                    <td className="p-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.includes(c.id)}
-                                            onChange={() => handleSelectOne(c.id)}
-                                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                        />
-                                    </td>
                                     <td className="p-3">{c.code}</td>
                                     <td className="p-3">{c.name}</td>
                                     <td className="p-3">{c.contactPerson} ({c.phone})</td>
@@ -238,13 +182,6 @@ export default function CustomerList() {
                 onConfirm={handleDelete}
                 title="ยืนยันการลบลูกค้า"
                 message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลลูกค้า "${customerToDelete?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
-            />
-            <ConfirmationModal
-                isOpen={isBulkDeleteConfirmOpen}
-                onClose={() => setIsBulkDeleteConfirmOpen(false)}
-                onConfirm={handleBulkDelete}
-                title="ยืนยันการลบหมู่"
-                message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลลูกค้าจำนวน ${selectedIds.length} รายการ? การกระทำนี้ไม่สามารถย้อนกลับได้`}
             />
 
             <ExcelImportModal
