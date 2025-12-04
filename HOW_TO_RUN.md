@@ -116,6 +116,9 @@ uvicorn app.main:app --reload --port 8000
 pip list
 ```
 
+.\venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload --port 8000
+
 ### Frontend
 
 ```bash

@@ -54,23 +54,22 @@ export default function SiteList() {
         try {
             // แปลงโครงสร้างข้อมูลให้ตรงกับ Backend
             const payload = {
+                siteCode: siteData.siteCode,
                 name: siteData.name,
                 customerId: String(siteData.customerId),
-                address: typeof siteData.address === 'object'
-                    ? Object.values(siteData.address).filter(Boolean).join(' ')
-                    : siteData.address,
+                customerCode: siteData.customerCode,
+                customerName: siteData.customerName,
+                contractStartDate: siteData.contractStartDate || null,
+                contractEndDate: siteData.contractEndDate || null,
+                address: siteData.address || "",
+                subDistrict: siteData.subDistrict || "",
+                district: siteData.district || "",
+                province: siteData.province || "",
+                postalCode: siteData.postalCode || "",
                 contactPerson: siteData.contactPerson || "",
                 phone: siteData.phone || "",
-                contractedServices: siteData.contractedServices.map(s => ({
-                    id: String(s.serviceId || s.id),
-                    serviceName: initialServices.find(i => i.id === parseInt(s.serviceId))?.name || s.position,
-                    position: s.position,
-                    payoutRate: parseFloat(s.payoutRate) || 0,
-                    hiringRate: parseFloat(s.hiringRate) || 0,
-                    diligenceBonus: parseFloat(s.diligenceBonus) || 0,
-                    pointBonus: parseFloat(s.pointBonus) || 0,
-                    otherBonus: parseFloat(s.otherBonus) || 0,
-                })),
+                employmentDetails: siteData.employmentDetails || [],
+                contractedServices: [],  // เก็บไว้ backward compatible
                 isActive: siteData.isActive !== undefined ? siteData.isActive : true
             };
 
@@ -120,9 +119,11 @@ export default function SiteList() {
                 ) : (
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b">
+                            <tr className="border-b bg-gray-100">
+                                <th className="text-left p-3">รหัสหน่วยงาน</th>
                                 <th className="text-left p-3">ชื่อหน่วยงาน</th>
                                 <th className="text-left p-3">ลูกค้า</th>
+                                <th className="text-left p-3">ที่อยู่</th>
                                 <th className="text-left p-3">สถานะ</th>
                                 <th className="text-left p-3">การกระทำ</th>
                             </tr>
@@ -130,8 +131,17 @@ export default function SiteList() {
                         <tbody>
                             {paginatedSites.map(s => (
                                 <tr key={s.id} className="hover:bg-gray-50 border-b">
-                                    <td className="p-3">{s.name}</td>
-                                    <td className="p-3">{s.customerName || customers.find(c => String(c.id) === String(s.customerId))?.name || "-"}</td>
+                                    <td className="p-3 font-mono text-sm">{s.siteCode || '-'}</td>
+                                    <td className="p-3 font-medium">{s.name}</td>
+                                    <td className="p-3">
+                                        <div className="text-sm">
+                                            <div className="font-medium">{s.customerName || customers.find(c => String(c.id) === String(s.customerId))?.name || "-"}</div>
+                                            <div className="text-gray-500 text-xs">{s.customerCode || ''}</div>
+                                        </div>
+                                    </td>
+                                    <td className="p-3 text-sm">
+                                        {s.district && s.province ? `${s.district}, ${s.province}` : (s.address ? s.address.substring(0, 30) + '...' : '-')}
+                                    </td>
                                     <td className="p-3">
                                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${s.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                             {s.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'}
@@ -165,7 +175,6 @@ export default function SiteList() {
                 site={selectedSite}
                 onSave={handleSaveSite}
                 customers={customers}
-                initialServices={initialServices}
             />
             <ConfirmationModal
                 isOpen={isConfirmOpen}

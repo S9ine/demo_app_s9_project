@@ -24,12 +24,7 @@ export default function CustomerList() {
         setIsLoading(true);
         try {
             const response = await api.get('/customers');
-            // แปลงข้อมูลจาก API ให้เข้ากับโครงสร้างที่ Frontend ใช้แสดงผล
-            setCustomers(response.data.map(c => ({
-                ...c,
-                // ใช้ code จาก Backend โดยตรง (เช่น TEST001) ไม่ต้องสร้างรหัสจำลอง
-                contact: { primary: { name: c.contactPerson, phone: c.phone, email: c.email } }
-            })));
+            setCustomers(response.data);
         } catch (error) {
             console.error('Error fetching customers:', error);
         } finally {
@@ -53,20 +48,21 @@ export default function CustomerList() {
 
     const handleSaveCustomer = async (customerData) => {
         try {
-            // เตรียมข้อมูลให้ตรงกับ Schema ของ Backend
             const payload = {
                 code: customerData.code,
+                businessType: customerData.businessType,
                 name: customerData.name,
-                contactPerson: customerData.contact?.primary?.name || '',
-                phone: customerData.contact?.primary?.phone || '',
-                email: customerData.contact?.primary?.email || '',
-                address: typeof customerData.address === 'object'
-                    ? `${customerData.address.street || ''} ${customerData.address.subdistrict || ''} ${customerData.address.district || ''} ${customerData.address.province || ''} ${customerData.address.zipcode || ''}`.trim()
-                    : customerData.address,
                 taxId: customerData.taxId,
-                mapLink: customerData.mapLink,
-                contact: customerData.contact,
-                billing: customerData.billing,
+                address: customerData.address,
+                subDistrict: customerData.subDistrict,
+                district: customerData.district,
+                province: customerData.province,
+                postalCode: customerData.postalCode,
+                contactPerson: customerData.contactPerson,
+                phone: customerData.phone,
+                email: customerData.email,
+                secondaryContact: customerData.secondaryContact,
+                paymentTerms: customerData.paymentTerms,
                 isActive: customerData.isActive !== undefined ? customerData.isActive : true
             };
 
@@ -130,8 +126,10 @@ export default function CustomerList() {
                     <table className="w-full">
                         <thead>
                             <tr className="border-b">
-                                <th className="text-left p-3">รหัส</th>
+                                <th className="text-left p-3">รหัสลูกค้า</th>
+                                <th className="text-left p-3">ประเภทธุรกิจ</th>
                                 <th className="text-left p-3">ชื่อลูกค้า</th>
+                                <th className="text-left p-3">ที่อยู่</th>
                                 <th className="text-left p-3">ข้อมูลติดต่อ</th>
                                 <th className="text-left p-3">สถานะ</th>
                                 <th className="text-left p-3">การกระทำ</th>
@@ -141,8 +139,18 @@ export default function CustomerList() {
                             {paginatedCustomers.map(c => (
                                 <tr key={c.id} className="hover:bg-gray-50 border-b">
                                     <td className="p-3">{c.code}</td>
+                                    <td className="p-3">{c.businessType || '-'}</td>
                                     <td className="p-3">{c.name}</td>
-                                    <td className="p-3">{c.contactPerson} ({c.phone})</td>
+                                    <td className="p-3 text-sm">
+                                        {[c.address, c.subDistrict, c.district, c.province, c.postalCode]
+                                            .filter(Boolean).join(' ') || '-'}
+                                    </td>
+                                    <td className="p-3 text-sm">
+                                        {c.contactPerson && <div>{c.contactPerson}</div>}
+                                        {c.phone && <div className="text-gray-600">{c.phone}</div>}
+                                        {c.email && <div className="text-gray-600">{c.email}</div>}
+                                        {!c.contactPerson && !c.phone && !c.email && '-'}
+                                    </td>
                                     <td className="p-3">
                                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${c.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                             {c.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'}

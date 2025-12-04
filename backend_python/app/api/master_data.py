@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File # type: ignore
 from fastapi.responses import FileResponse
 import pandas as pd
 from io import BytesIO
@@ -34,8 +34,25 @@ router = APIRouter()
 
 # ========== CUSTOMER ENDPOINTS ==========
 
+@router.get("/customers/template")
+async def download_customer_template(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Download Excel template for customer import"""
+    template_path = "templates/customer_template.xlsx"
+    
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=404, detail="Template file not found")
+    
+    return FileResponse(
+        path=template_path,
+        filename="customer_template.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+
 @router.get("/customers", response_model=List[CustomerResponse])
-async def get_customers(
+async def get_customers(  # type: ignore
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -47,20 +64,28 @@ async def get_customers(
         {
             "id": str(c.id),
             "code": c.code,
+            "businessType": c.businessType if hasattr(c, 'businessType') else None,
             "name": c.name,
+            "taxId": c.taxId if hasattr(c, 'taxId') else None,
+            "address": c.address,
+            "subDistrict": c.subDistrict if hasattr(c, 'subDistrict') else None,
+            "district": c.district if hasattr(c, 'district') else None,
+            "province": c.province if hasattr(c, 'province') else None,
+            "postalCode": c.postalCode if hasattr(c, 'postalCode') else None,
             "contactPerson": c.contactPerson,
             "phone": c.phone,
             "email": c.email,
-            "address": c.address,
+            "secondaryContact": c.secondaryContact if hasattr(c, 'secondaryContact') else None,
+            "paymentTerms": c.paymentTerms if hasattr(c, 'paymentTerms') else None,
             "isActive": c.isActive,
             "createdAt": c.createdAt
         }
         for c in customers
-    ]
+    ] # type: ignore
 
 
 @router.post("/customers", response_model=CustomerResponse)
-async def create_customer(
+async def create_customer( # type: ignore
     customer_data: CustomerCreate,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -73,11 +98,19 @@ async def create_customer(
 
     new_customer = Customer(
         code=customer_data.code,
+        businessType=customer_data.businessType,
         name=customer_data.name,
+        taxId=customer_data.taxId,
+        address=customer_data.address,
+        subDistrict=customer_data.subDistrict,
+        district=customer_data.district,
+        province=customer_data.province,
+        postalCode=customer_data.postalCode,
         contactPerson=customer_data.contactPerson,
         phone=customer_data.phone,
         email=customer_data.email,
-        address=customer_data.address,
+        secondaryContact=customer_data.secondaryContact,
+        paymentTerms=customer_data.paymentTerms,
         isActive=customer_data.isActive
     )
     
@@ -88,18 +121,26 @@ async def create_customer(
     return {
         "id": str(new_customer.id),
         "code": new_customer.code,
+        "businessType": new_customer.businessType,
         "name": new_customer.name,
+        "taxId": new_customer.taxId,
+        "address": new_customer.address,
+        "subDistrict": new_customer.subDistrict,
+        "district": new_customer.district,
+        "province": new_customer.province,
+        "postalCode": new_customer.postalCode,
         "contactPerson": new_customer.contactPerson,
         "phone": new_customer.phone,
         "email": new_customer.email,
-        "address": new_customer.address,
+        "secondaryContact": new_customer.secondaryContact,
+        "paymentTerms": new_customer.paymentTerms,
         "isActive": new_customer.isActive,
         "createdAt": new_customer.createdAt
-    }
+    } # type: ignore
 
 
 @router.get("/customers/{customer_id}", response_model=CustomerResponse)
-async def get_customer(
+async def get_customer(  # type: ignore
     customer_id: str,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -119,18 +160,26 @@ async def get_customer(
     return {
         "id": str(customer.id),
         "code": customer.code,
+        "businessType": customer.businessType if hasattr(customer, 'businessType') else None,
         "name": customer.name,
+        "taxId": customer.taxId if hasattr(customer, 'taxId') else None,
+        "address": customer.address,
+        "subDistrict": customer.subDistrict if hasattr(customer, 'subDistrict') else None,
+        "district": customer.district if hasattr(customer, 'district') else None,
+        "province": customer.province if hasattr(customer, 'province') else None,
+        "postalCode": customer.postalCode if hasattr(customer, 'postalCode') else None,
         "contactPerson": customer.contactPerson,
         "phone": customer.phone,
         "email": customer.email,
-        "address": customer.address,
+        "secondaryContact": customer.secondaryContact if hasattr(customer, 'secondaryContact') else None,
+        "paymentTerms": customer.paymentTerms if hasattr(customer, 'paymentTerms') else None,
         "isActive": customer.isActive,
         "createdAt": customer.createdAt
-    }
+    } # type: ignore
 
 
 @router.put("/customers/{customer_id}", response_model=CustomerResponse)
-async def update_customer(
+async def update_customer(  # type: ignore
     customer_id: str,
     customer_data: CustomerUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -154,20 +203,36 @@ async def update_customer(
             existing = await db.execute(select(Customer).where(Customer.code == customer_data.code))
             if existing.scalar_one_or_none():
                 raise HTTPException(status_code=400, detail="รหัสลูกค้าซ้ำ")
-        customer.code = customer_data.code
+        customer.code = customer_data.code  # type: ignore[assignment]
 
+    if customer_data.businessType is not None:
+        customer.businessType = customer_data.businessType  # type: ignore[assignment]
     if customer_data.name is not None:
-        customer.name = customer_data.name
+        customer.name = customer_data.name  # type: ignore[assignment]
+    if customer_data.taxId is not None:
+        customer.taxId = customer_data.taxId  # type: ignore[assignment]
     if customer_data.contactPerson is not None:
-        customer.contactPerson = customer_data.contactPerson
+        customer.contactPerson = customer_data.contactPerson  # type: ignore[assignment]
     if customer_data.phone is not None:
-        customer.phone = customer_data.phone
+        customer.phone = customer_data.phone  # type: ignore[assignment]
     if customer_data.email is not None:
-        customer.email = customer_data.email
+        customer.email = customer_data.email  # type: ignore[assignment]
     if customer_data.address is not None:
-        customer.address = customer_data.address
+        customer.address = customer_data.address  # type: ignore[assignment]
+    if customer_data.subDistrict is not None:
+        customer.subDistrict = customer_data.subDistrict  # type: ignore[assignment]
+    if customer_data.district is not None:
+        customer.district = customer_data.district  # type: ignore[assignment]
+    if customer_data.province is not None:
+        customer.province = customer_data.province  # type: ignore[assignment]
+    if customer_data.postalCode is not None:
+        customer.postalCode = customer_data.postalCode  # type: ignore[assignment]
+    if customer_data.secondaryContact is not None:
+        customer.secondaryContact = customer_data.secondaryContact  # type: ignore[assignment]
+    if customer_data.paymentTerms is not None:
+        customer.paymentTerms = customer_data.paymentTerms  # type: ignore[assignment]
     if customer_data.isActive is not None:
-        customer.isActive = customer_data.isActive
+        customer.isActive = customer_data.isActive  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(customer)
@@ -175,14 +240,22 @@ async def update_customer(
     return {
         "id": str(customer.id),
         "code": customer.code,
+        "businessType": customer.businessType if hasattr(customer, 'businessType') else None,
         "name": customer.name,
+        "taxId": customer.taxId if hasattr(customer, 'taxId') else None,
+        "address": customer.address,
+        "subDistrict": customer.subDistrict if hasattr(customer, 'subDistrict') else None,
+        "district": customer.district if hasattr(customer, 'district') else None,
+        "province": customer.province if hasattr(customer, 'province') else None,
+        "postalCode": customer.postalCode if hasattr(customer, 'postalCode') else None,
         "contactPerson": customer.contactPerson,
         "phone": customer.phone,
         "email": customer.email,
-        "address": customer.address,
+        "secondaryContact": customer.secondaryContact if hasattr(customer, 'secondaryContact') else None,
+        "paymentTerms": customer.paymentTerms if hasattr(customer, 'paymentTerms') else None,
         "isActive": customer.isActive,
         "createdAt": customer.createdAt
-    }
+    } # type: ignore
 
 
 @router.delete("/customers/{customer_id}")
@@ -209,10 +282,114 @@ async def delete_customer(
     return {"message": "Customer deleted successfully"}
 
 
+@router.post("/customers/import")
+async def import_customers_from_excel(  # type: ignore
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Import customers from Excel file"""
+    # Validate file type
+    if not file.filename.endswith(('.xlsx', '.xls')):  # type: ignore[union-attr]
+        raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ Excel (.xlsx หรือ .xls)")
+    
+    try:
+        # Read Excel file
+        contents = await file.read()
+        df = pd.read_excel(BytesIO(contents))  # type: ignore[call-overload]
+        
+        # Expected columns (Thai)
+        expected_columns = [
+            'รหัสลูกค้า', 'ประเภทธุรกิจ', 'ชื่อลูกค้า', 'เลขประจำตัวผู้เสียภาษี',
+            'ที่อยู่', 'แขวง/ตำบล', 'เขต/อำเภอ', 'จังหวัด', 'รหัสไปรษณีย์',
+            'ชื่อผู้ติดต่อหลัก', 'เบอร์โทร', 'อีเมล',
+            'ผู้ติดต่อรอง', 'เงื่อนไขการชำระเงิน'
+        ]
+        
+        # Check columns
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"ไฟล์ขาดคอลัมน์: {', '.join(missing_columns)}"
+            )
+        
+        success_count = 0
+        error_count = 0
+        errors = []
+        
+        for index, row in df.iterrows():
+            try:
+                code = str(row['รหัสลูกค้า']).strip()
+                
+                # Skip empty rows
+                if not code or code == 'nan':
+                    continue
+                
+                # Validate code format
+                if not re.match(r'^[\w\-]+$', code):
+                    errors.append(f"แถว {int(index) + 2}: รหัสลูกค้า '{code}' ไม่ถูกต้อง (ใช้ได้เฉพาะ A-Z, 0-9, - และ _)")  # type: ignore[arg-type]
+                    error_count += 1
+                    continue
+                
+                # Check if customer already exists
+                result = await db.execute(select(Customer).where(Customer.code == code))
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    errors.append(f"แถว {int(index) + 2}: รหัสลูกค้า '{code}' มีอยู่แล้วในระบบ")  # type: ignore[arg-type]
+                    error_count += 1
+                    continue
+                
+                # Get business type
+                business_type = str(row['ประเภทธุรกิจ']).strip() if pd.notna(row['ประเภทธุรกิจ']) else ""
+                
+                # Create new customer
+                new_customer = Customer(
+                    code=code,
+                    businessType=business_type if business_type else None,
+                    name=str(row['ชื่อลูกค้า']).strip(),
+                    taxId=str(row['เลขประจำตัวผู้เสียภาษี']).strip() if pd.notna(row['เลขประจำตัวผู้เสียภาษี']) else None,
+                    address=str(row['ที่อยู่']).strip() if pd.notna(row['ที่อยู่']) else None,
+                    subDistrict=str(row['แขวง/ตำบล']).strip() if pd.notna(row['แขวง/ตำบล']) else None,
+                    district=str(row['เขต/อำเภอ']).strip() if pd.notna(row['เขต/อำเภอ']) else None,
+                    province=str(row['จังหวัด']).strip() if pd.notna(row['จังหวัด']) else None,
+                    postalCode=str(row['รหัสไปรษณีย์']).strip() if pd.notna(row['รหัสไปรษณีย์']) else None,
+                    contactPerson=str(row['ชื่อผู้ติดต่อหลัก']).strip() if pd.notna(row['ชื่อผู้ติดต่อหลัก']) else None,
+                    phone=str(row['เบอร์โทร']).strip() if pd.notna(row['เบอร์โทร']) else None,
+                    email=str(row['อีเมล']).strip() if pd.notna(row['อีเมล']) else None,
+                    secondaryContact=str(row['ผู้ติดต่อรอง']).strip() if pd.notna(row['ผู้ติดต่อรอง']) else None,
+                    paymentTerms=str(row['เงื่อนไขการชำระเงิน']).strip() if pd.notna(row['เงื่อนไขการชำระเงิน']) else None,
+                    isActive=True
+                )
+                
+                db.add(new_customer)
+                success_count += 1
+                
+            except Exception as e:
+                errors.append(f"แถว {int(index) + 2}: {str(e)}")  # type: ignore[arg-type]
+                error_count += 1
+        
+        # Commit all changes
+        if success_count > 0:
+            await db.commit()
+        
+        return {
+            "success": True,
+            "message": f"Import สำเร็จ {success_count} รายการ, ล้มเหลว {error_count} รายการ",
+            "successCount": success_count,
+            "errorCount": error_count,
+            "errors": errors[:10]  # Return first 10 errors only
+        } # type: ignore
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาด: {str(e)}")
+
+
 # ========== SITE ENDPOINTS ==========
 
 @router.get("/sites", response_model=List[SiteResponse])
-async def get_sites(
+async def get_sites(  # type: ignore
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -228,29 +405,43 @@ async def get_sites(
     result_list = []
     for site in sites:
         customer = customer_map.get(site.customerId)
-        result_list.append({
+        result_list.append({ # type: ignore
             "id": str(site.id),
+            "siteCode": site.siteCode if hasattr(site, 'siteCode') else "",
             "name": site.name,
-            "customerId": str(site.customerId) if site.customerId else "",
-            "customerName": customer.name if customer else None,
+            "customerId": str(site.customerId) if site.customerId else "",  # type: ignore[arg-type]
+            "customerCode": site.customerCode if hasattr(site, 'customerCode') else (customer.code if customer else None),
+            "customerName": site.customerName if hasattr(site, 'customerName') else (customer.name if customer else None),
+            "contractStartDate": site.contractStartDate.isoformat() if hasattr(site, 'contractStartDate') and site.contractStartDate else None,  # type: ignore[arg-type]
+            "contractEndDate": site.contractEndDate.isoformat() if hasattr(site, 'contractEndDate') and site.contractEndDate else None,  # type: ignore[arg-type]
             "address": site.address,
+            "subDistrict": site.subDistrict if hasattr(site, 'subDistrict') else None,
+            "district": site.district if hasattr(site, 'district') else None,
+            "province": site.province if hasattr(site, 'province') else None,
+            "postalCode": site.postalCode if hasattr(site, 'postalCode') else None,
             "contactPerson": site.contactPerson,
             "phone": site.phone,
-            "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],
+            "employmentDetails": json.loads(site.employmentDetails) if hasattr(site, 'employmentDetails') and site.employmentDetails else [],  # type: ignore[arg-type]
+            "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],  # type: ignore[arg-type]
             "isActive": site.isActive,
             "createdAt": site.createdAt
         })
     
-    return result_list
+    return result_list # type: ignore
 
 
 @router.post("/sites", response_model=SiteResponse)
-async def create_site(
+async def create_site(  # type: ignore
     site_data: SiteCreate,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new site"""
+    # Check duplicate siteCode
+    result = await db.execute(select(Site).where(Site.siteCode == site_data.siteCode))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="รหัสหน่วยงานซ้ำ (Site Code already exists)")
+    
     # Verify customer exists
     try:
         cid = int(site_data.customerId)
@@ -262,13 +453,38 @@ async def create_site(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
+    # Parse dates
+    from datetime import datetime
+    contract_start = None
+    contract_end = None
+    if site_data.contractStartDate:
+        try:
+            contract_start = datetime.fromisoformat(site_data.contractStartDate).date()
+        except:
+            pass
+    if site_data.contractEndDate:
+        try:
+            contract_end = datetime.fromisoformat(site_data.contractEndDate).date()
+        except:
+            pass
+    
     new_site = Site(
+        siteCode=site_data.siteCode,
         name=site_data.name,
         customerId=cid,
+        customerCode=customer.code,
+        customerName=customer.name,
+        contractStartDate=contract_start,
+        contractEndDate=contract_end,
         address=site_data.address,
+        subDistrict=site_data.subDistrict,
+        district=site_data.district,
+        province=site_data.province,
+        postalCode=site_data.postalCode,
         contactPerson=site_data.contactPerson,
         phone=site_data.phone,
-        contractedServices=json.dumps(site_data.contractedServices or []),
+        employmentDetails=json.dumps([d.model_dump() for d in site_data.employmentDetails]) if site_data.employmentDetails else None,
+        contractedServices=json.dumps([s.model_dump() for s in site_data.contractedServices]) if site_data.contractedServices else None,
         isActive=site_data.isActive
     )
     
@@ -278,20 +494,29 @@ async def create_site(
     
     return {
         "id": str(new_site.id),
+        "siteCode": new_site.siteCode,
         "name": new_site.name,
         "customerId": str(new_site.customerId),
-        "customerName": customer.name,
+        "customerCode": new_site.customerCode,
+        "customerName": new_site.customerName,
+        "contractStartDate": new_site.contractStartDate.isoformat() if new_site.contractStartDate else None,  # type: ignore[arg-type]
+        "contractEndDate": new_site.contractEndDate.isoformat() if new_site.contractEndDate else None,  # type: ignore[arg-type]
         "address": new_site.address,
+        "subDistrict": new_site.subDistrict,
+        "district": new_site.district,
+        "province": new_site.province,
+        "postalCode": new_site.postalCode,
         "contactPerson": new_site.contactPerson,
         "phone": new_site.phone,
-        "contractedServices": json.loads(new_site.contractedServices),
+        "employmentDetails": json.loads(new_site.employmentDetails) if new_site.employmentDetails else [],  # type: ignore[arg-type]
+        "contractedServices": json.loads(new_site.contractedServices) if new_site.contractedServices else [],  # type: ignore[arg-type]
         "isActive": new_site.isActive,
         "createdAt": new_site.createdAt
     }
 
 
 @router.get("/sites/{site_id}", response_model=SiteResponse)
-async def get_site(
+async def get_site( # type: ignore
     site_id: str,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -313,20 +538,29 @@ async def get_site(
     
     return {
         "id": str(site.id),
+        "siteCode": site.siteCode if hasattr(site, 'siteCode') else "",
         "name": site.name,
-        "customerId": str(site.customerId) if site.customerId else "",
-        "customerName": customer.name if customer else None,
+        "customerId": str(site.customerId) if site.customerId else "",  # type: ignore[arg-type]
+        "customerCode": site.customerCode if hasattr(site, 'customerCode') else (customer.code if customer else None),
+        "customerName": site.customerName if hasattr(site, 'customerName') else (customer.name if customer else None),
+        "contractStartDate": site.contractStartDate.isoformat() if hasattr(site, 'contractStartDate') and site.contractStartDate else None,  # type: ignore[arg-type]
+        "contractEndDate": site.contractEndDate.isoformat() if hasattr(site, 'contractEndDate') and site.contractEndDate else None,  # type: ignore[arg-type]
         "address": site.address,
+        "subDistrict": site.subDistrict if hasattr(site, 'subDistrict') else None,
+        "district": site.district if hasattr(site, 'district') else None,
+        "province": site.province if hasattr(site, 'province') else None,
+        "postalCode": site.postalCode if hasattr(site, 'postalCode') else None,
         "contactPerson": site.contactPerson,
         "phone": site.phone,
-        "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],
+        "employmentDetails": json.loads(site.employmentDetails) if hasattr(site, 'employmentDetails') and site.employmentDetails else [],  # type: ignore[arg-type]
+        "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],  # type: ignore[arg-type]
         "isActive": site.isActive,
         "createdAt": site.createdAt
     }
 
 
 @router.put("/sites/{site_id}", response_model=SiteResponse)
-async def update_site(
+async def update_site(  # type: ignore
     site_id: str,
     site_data: SiteUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -344,28 +578,67 @@ async def update_site(
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
     
+    # Check duplicate siteCode if changed
+    if site_data.siteCode is not None and site_data.siteCode != site.siteCode:
+        result = await db.execute(select(Site).where(Site.siteCode == site_data.siteCode))
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="รหัสหน่วยงานซ้ำ (Site Code already exists)")
+        site.siteCode = site_data.siteCode  # type: ignore[assignment]
+    
     if site_data.name is not None:
-        site.name = site_data.name
+        site.name = site_data.name  # type: ignore[assignment]
     if site_data.customerId is not None:
         try:
             cid = int(site_data.customerId)
             result = await db.execute(select(Customer).where(Customer.id == cid))
-            if not result.scalar_one_or_none():
+            customer = result.scalar_one_or_none()
+            if not customer:
                 raise HTTPException(status_code=404, detail="Customer not found")
-            site.customerId = cid
+            site.customerId = cid  # type: ignore[assignment]
+            site.customerCode = customer.code  # type: ignore[assignment]
+            site.customerName = customer.name  # type: ignore[assignment]
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid customer ID")
+    
+    if site_data.customerCode is not None:
+        site.customerCode = site_data.customerCode  # type: ignore[assignment]
+    if site_data.customerName is not None:
+        site.customerName = site_data.customerName  # type: ignore[assignment]
+    
+    # Update contract dates
+    if site_data.contractStartDate is not None:
+        from datetime import datetime
+        try:
+            site.contractStartDate = datetime.fromisoformat(site_data.contractStartDate).date()  # type: ignore[assignment]
+        except:
+            site.contractStartDate = None  # type: ignore[assignment]
+    if site_data.contractEndDate is not None:
+        from datetime import datetime
+        try:
+            site.contractEndDate = datetime.fromisoformat(site_data.contractEndDate).date()  # type: ignore[assignment]
+        except:
+            site.contractEndDate = None  # type: ignore[assignment]
             
     if site_data.address is not None:
-        site.address = site_data.address
+        site.address = site_data.address  # type: ignore[assignment]
+    if site_data.subDistrict is not None:
+        site.subDistrict = site_data.subDistrict  # type: ignore[assignment]
+    if site_data.district is not None:
+        site.district = site_data.district  # type: ignore[assignment]
+    if site_data.province is not None:
+        site.province = site_data.province  # type: ignore[assignment]
+    if site_data.postalCode is not None:
+        site.postalCode = site_data.postalCode  # type: ignore[assignment]
     if site_data.contactPerson is not None:
-        site.contactPerson = site_data.contactPerson
+        site.contactPerson = site_data.contactPerson  # type: ignore[assignment]
     if site_data.phone is not None:
-        site.phone = site_data.phone
+        site.phone = site_data.phone  # type: ignore[assignment]
+    if site_data.employmentDetails is not None:
+        site.employmentDetails = json.dumps([d.model_dump() for d in site_data.employmentDetails])  # type: ignore[assignment]
     if site_data.contractedServices is not None:
-        site.contractedServices = json.dumps(site_data.contractedServices)
+        site.contractedServices = json.dumps([s.model_dump() for s in site_data.contractedServices])  # type: ignore[assignment]
     if site_data.isActive is not None:
-        site.isActive = site_data.isActive
+        site.isActive = site_data.isActive  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(site)
@@ -375,13 +648,22 @@ async def update_site(
     
     return {
         "id": str(site.id),
+        "siteCode": site.siteCode if hasattr(site, 'siteCode') else "",
         "name": site.name,
-        "customerId": str(site.customerId) if site.customerId else "",
-        "customerName": customer.name if customer else None,
+        "customerId": str(site.customerId) if site.customerId else "",  # type: ignore[arg-type]
+        "customerCode": site.customerCode if hasattr(site, 'customerCode') else None,
+        "customerName": site.customerName if hasattr(site, 'customerName') else (customer.name if customer else None),
+        "contractStartDate": site.contractStartDate.isoformat() if hasattr(site, 'contractStartDate') and site.contractStartDate else None,  # type: ignore[arg-type]
+        "contractEndDate": site.contractEndDate.isoformat() if hasattr(site, 'contractEndDate') and site.contractEndDate else None,  # type: ignore[arg-type]
         "address": site.address,
+        "subDistrict": site.subDistrict if hasattr(site, 'subDistrict') else None,
+        "district": site.district if hasattr(site, 'district') else None,
+        "province": site.province if hasattr(site, 'province') else None,
+        "postalCode": site.postalCode if hasattr(site, 'postalCode') else None,
         "contactPerson": site.contactPerson,
         "phone": site.phone,
-        "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],
+        "employmentDetails": json.loads(site.employmentDetails) if hasattr(site, 'employmentDetails') and site.employmentDetails else [],  # type: ignore[arg-type]
+        "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],  # type: ignore[arg-type]
         "isActive": site.isActive,
         "createdAt": site.createdAt
     }
@@ -414,7 +696,7 @@ async def delete_site(
 # ========== GUARD ENDPOINTS ==========
 
 @router.get("/guards", response_model=List[GuardResponse])
-async def get_guards(
+async def get_guards(  # type: ignore
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -435,11 +717,11 @@ async def get_guards(
             "createdAt": g.createdAt
         }
         for g in guards
-    ]
+    ] # type: ignore
 
 
 @router.post("/guards", response_model=GuardResponse)
-async def create_guard(
+async def create_guard( # type: ignore
     guard_data: GuardCreate,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -464,7 +746,7 @@ async def create_guard(
     await db.commit()
     await db.refresh(new_guard)
     
-    return {
+    return {  # type: ignore
         "id": str(new_guard.id),
         "guardId": new_guard.guardId,
         "name": new_guard.name,
@@ -478,7 +760,7 @@ async def create_guard(
 
 
 @router.get("/guards/{guard_id}", response_model=GuardResponse)
-async def get_guard(
+async def get_guard(  # type: ignore
     guard_id: str,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -495,7 +777,7 @@ async def get_guard(
     if not guard:
         raise HTTPException(status_code=404, detail="Guard not found")
     
-    return {
+    return {  # type: ignore
         "id": str(guard.id),
         "guardId": guard.guardId,
         "name": guard.name,
@@ -509,7 +791,7 @@ async def get_guard(
 
 
 @router.put("/guards/{guard_id}", response_model=GuardResponse)
-async def update_guard(
+async def update_guard(  # type: ignore
     guard_id: str,
     guard_data: GuardUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -528,22 +810,22 @@ async def update_guard(
         raise HTTPException(status_code=404, detail="Guard not found")
     
     if guard_data.name is not None:
-        guard.name = guard_data.name
+        guard.name = guard_data.name  # type: ignore[assignment]
     if guard_data.phone is not None:
-        guard.phone = guard_data.phone
+        guard.phone = guard_data.phone  # type: ignore[assignment]
     if guard_data.address is not None:
-        guard.address = guard_data.address
+        guard.address = guard_data.address  # type: ignore[assignment]
     if guard_data.bankAccountNo is not None:
-        guard.bankAccountNo = guard_data.bankAccountNo
+        guard.bankAccountNo = guard_data.bankAccountNo  # type: ignore[assignment]
     if guard_data.bankCode is not None:
-        guard.bankCode = guard_data.bankCode
+        guard.bankCode = guard_data.bankCode  # type: ignore[assignment]
     if guard_data.isActive is not None:
-        guard.isActive = guard_data.isActive
+        guard.isActive = guard_data.isActive  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(guard)
     
-    return {
+    return {  # type: ignore
         "id": str(guard.id),
         "guardId": guard.guardId,
         "name": guard.name,
@@ -583,7 +865,7 @@ async def delete_guard(
 # ========== STAFF ENDPOINTS ==========
 
 @router.get("/staff", response_model=List[StaffResponse])
-async def get_staff(
+async def get_staff(  # type: ignore
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -591,7 +873,7 @@ async def get_staff(
     result = await db.execute(select(Staff).order_by(Staff.id))
     staff_list = result.scalars().all()
     
-    return [
+    return [  # type: ignore
         {
             "id": str(s.id),
             "guardId": s.staffId,
@@ -608,7 +890,7 @@ async def get_staff(
 
 
 @router.post("/staff", response_model=StaffResponse)
-async def create_staff(
+async def create_staff(  # type: ignore
     staff_data: StaffCreate,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -633,7 +915,7 @@ async def create_staff(
     await db.commit()
     await db.refresh(new_staff)
     
-    return {
+    return {  # type: ignore
         "id": str(new_staff.id),
         "guardId": new_staff.staffId,
         "name": new_staff.name,
@@ -647,7 +929,7 @@ async def create_staff(
 
 
 @router.get("/staff/{staff_id}", response_model=StaffResponse)
-async def get_staff_member(
+async def get_staff_member(  # type: ignore
     staff_id: str,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -664,7 +946,7 @@ async def get_staff_member(
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
     
-    return {
+    return {  # type: ignore
         "id": str(staff.id),
         "guardId": staff.staffId,
         "name": staff.name,
@@ -678,7 +960,7 @@ async def get_staff_member(
 
 
 @router.put("/staff/{staff_id}", response_model=StaffResponse)
-async def update_staff(
+async def update_staff(  # type: ignore
     staff_id: str,
     staff_data: StaffUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -697,22 +979,22 @@ async def update_staff(
         raise HTTPException(status_code=404, detail="Staff not found")
     
     if staff_data.name is not None:
-        staff.name = staff_data.name
+        staff.name = staff_data.name  # type: ignore[assignment]
     if staff_data.phone is not None:
-        staff.phone = staff_data.phone
+        staff.phone = staff_data.phone  # type: ignore[assignment]
     if staff_data.address is not None:
-        staff.address = staff_data.address
+        staff.address = staff_data.address  # type: ignore[assignment]
     if staff_data.bankAccountNo is not None:
-        staff.bankAccountNo = staff_data.bankAccountNo
+        staff.bankAccountNo = staff_data.bankAccountNo  # type: ignore[assignment]
     if staff_data.bankCode is not None:
-        staff.bankCode = staff_data.bankCode
+        staff.bankCode = staff_data.bankCode  # type: ignore[assignment]
     if staff_data.isActive is not None:
-        staff.isActive = staff_data.isActive
+        staff.isActive = staff_data.isActive  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(staff)
     
-    return {
+    return {  # type: ignore
         "id": str(staff.id),
         "guardId": staff.staffId,
         "name": staff.name,
@@ -752,7 +1034,7 @@ async def delete_staff(
 # ========== BANK ENDPOINTS ==========
 
 @router.get("/banks", response_model=List[BankResponse])
-async def get_banks(
+async def get_banks(  # type: ignore
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -760,7 +1042,7 @@ async def get_banks(
     result = await db.execute(select(Bank).order_by(Bank.id))
     banks = result.scalars().all()
     
-    return [
+    return [  # type: ignore
         {
             "id": str(b.id),
             "code": b.code,
@@ -772,7 +1054,7 @@ async def get_banks(
 
 
 @router.post("/banks", response_model=BankResponse)
-async def create_bank(
+async def create_bank(  # type: ignore
     bank_data: BankCreate,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -793,7 +1075,7 @@ async def create_bank(
     await db.commit()
     await db.refresh(new_bank)
     
-    return {
+    return {  # type: ignore
         "id": str(new_bank.id),
         "code": new_bank.code,
         "name": new_bank.name,
@@ -802,7 +1084,7 @@ async def create_bank(
 
 
 @router.get("/banks/{bank_id}", response_model=BankResponse)
-async def get_bank(
+async def get_bank(  # type: ignore
     bank_id: str,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
@@ -819,7 +1101,7 @@ async def get_bank(
     if not bank:
         raise HTTPException(status_code=404, detail="Bank not found")
     
-    return {
+    return {  # type: ignore
         "id": str(bank.id),
         "code": bank.code,
         "name": bank.name,
@@ -828,7 +1110,7 @@ async def get_bank(
 
 
 @router.put("/banks/{bank_id}", response_model=BankResponse)
-async def update_bank(
+async def update_bank(  # type: ignore
     bank_id: str,
     bank_data: BankUpdate,
     current_user: User = Depends(get_current_active_user),
@@ -847,14 +1129,14 @@ async def update_bank(
         raise HTTPException(status_code=404, detail="Bank not found")
     
     if bank_data.name is not None:
-        bank.name = bank_data.name
+        bank.name = bank_data.name  # type: ignore[assignment]
     if bank_data.shortNameEN is not None:
-        bank.shortNameEN = bank_data.shortNameEN
+        bank.shortNameEN = bank_data.shortNameEN  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(bank)
     
-    return {
+    return {  # type: ignore
         "id": str(bank.id),
         "code": bank.code,
         "name": bank.name,
@@ -888,15 +1170,15 @@ async def delete_bank(
 # ========== PRODUCT ENDPOINTS ==========
 
 @router.get("/products", response_model=List[ProductResponse])
-async def get_products(db: AsyncSession = Depends(get_db)):
+async def get_products(db: AsyncSession = Depends(get_db)):  # type: ignore
     result = await db.execute(select(Product).order_by(Product.code))
-    return [
-        {"id": str(p.id), "code": p.code, "name": p.name, "category": p.category, "price": p.price, "isActive": p.isActive, "createdAt": p.createdAt}
+    return [  # type: ignore
+        {"id": str(p.id), "code": p.code, "name": p.name, "category": p.category, "price": p.price, "isActive": p.isActive, "createdAt": p.createdAt}  # type: ignore
         for p in result.scalars().all()
     ]
 
 @router.post("/products", response_model=ProductResponse)
-async def create_product(product_data: ProductCreate, db: AsyncSession = Depends(get_db)):
+async def create_product(product_data: ProductCreate, db: AsyncSession = Depends(get_db)):  # type: ignore
     # Check duplicate code
     existing = await db.execute(select(Product).where(Product.code == product_data.code))
     if existing.scalar_one_or_none():
@@ -906,10 +1188,10 @@ async def create_product(product_data: ProductCreate, db: AsyncSession = Depends
     db.add(new_product)
     await db.commit()
     await db.refresh(new_product)
-    return {"id": str(new_product.id), "code": new_product.code, "name": new_product.name, "category": new_product.category, "price": new_product.price, "isActive": new_product.isActive, "createdAt": new_product.createdAt}
+    return {"id": str(new_product.id), "code": new_product.code, "name": new_product.name, "category": new_product.category, "price": new_product.price, "isActive": new_product.isActive, "createdAt": new_product.createdAt}  # type: ignore
 
 @router.put("/products/{product_id}", response_model=ProductResponse)
-async def update_product(product_id: str, product_data: ProductUpdate, db: AsyncSession = Depends(get_db)):
+async def update_product(product_id: str, product_data: ProductUpdate, db: AsyncSession = Depends(get_db)):  # type: ignore
     try:
         pid = int(product_id)
     except ValueError:
@@ -925,7 +1207,7 @@ async def update_product(product_id: str, product_data: ProductUpdate, db: Async
         
     await db.commit()
     await db.refresh(product)
-    return {"id": str(product.id), "code": product.code, "name": product.name, "category": product.category, "price": product.price, "isActive": product.isActive, "createdAt": product.createdAt}
+    return {"id": str(product.id), "code": product.code, "name": product.name, "category": product.category, "price": product.price, "isActive": product.isActive, "createdAt": product.createdAt}  # type: ignore
 
 @router.delete("/products/{product_id}")
 async def delete_product(product_id: str, db: AsyncSession = Depends(get_db)):
@@ -946,20 +1228,20 @@ async def delete_product(product_id: str, db: AsyncSession = Depends(get_db)):
 # ========== SERVICE ENDPOINTS ==========
 
 @router.get("/services", response_model=List[ServiceResponse])
-async def get_services(db: AsyncSession = Depends(get_db)):
+async def get_services(db: AsyncSession = Depends(get_db)):  # type: ignore
     result = await db.execute(select(Service).order_by(Service.id))
-    return [{"id": str(s.id), "name": s.name, "isActive": s.isActive, "createdAt": s.createdAt} for s in result.scalars().all()]
+    return [{"id": str(s.id), "name": s.name, "isActive": s.isActive, "createdAt": s.createdAt} for s in result.scalars().all()]  # type: ignore
 
 @router.post("/services", response_model=ServiceResponse)
-async def create_service(service_data: ServiceCreate, db: AsyncSession = Depends(get_db)):
+async def create_service(service_data: ServiceCreate, db: AsyncSession = Depends(get_db)):  # type: ignore
     new_service = Service(**service_data.model_dump())
     db.add(new_service)
     await db.commit()
     await db.refresh(new_service)
-    return {"id": str(new_service.id), "name": new_service.name, "isActive": new_service.isActive, "createdAt": new_service.createdAt}
+    return {"id": str(new_service.id), "name": new_service.name, "isActive": new_service.isActive, "createdAt": new_service.createdAt}  # type: ignore
 
 @router.put("/services/{service_id}", response_model=ServiceResponse)
-async def update_service(service_id: str, service_data: ServiceUpdate, db: AsyncSession = Depends(get_db)):
+async def update_service(service_id: str, service_data: ServiceUpdate, db: AsyncSession = Depends(get_db)):  # type: ignore
     try:
         sid = int(service_id)
     except ValueError:
@@ -975,7 +1257,7 @@ async def update_service(service_id: str, service_data: ServiceUpdate, db: Async
         
     await db.commit()
     await db.refresh(service)
-    return {"id": str(service.id), "name": service.name, "isActive": service.isActive, "createdAt": service.createdAt}
+    return {"id": str(service.id), "name": service.name, "isActive": service.isActive, "createdAt": service.createdAt}  # type: ignore
 
 @router.delete("/services/{service_id}")
 async def delete_service(service_id: str, db: AsyncSession = Depends(get_db)):
