@@ -123,16 +123,16 @@ export default function CustomerList() {
                 {isLoading ? (
                     <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
                 ) : (
-                    <table className="w-full">
+                    <table className="w-full text-sm">
                         <thead>
-                            <tr className="border-b">
-                                <th className="text-left p-3">รหัสลูกค้า</th>
-                                <th className="text-left p-3">ประเภทธุรกิจ</th>
-                                <th className="text-left p-3">ชื่อลูกค้า</th>
-                                <th className="text-left p-3">ที่อยู่</th>
-                                <th className="text-left p-3">ข้อมูลติดต่อ</th>
-                                <th className="text-left p-3">สถานะ</th>
-                                <th className="text-left p-3">การกระทำ</th>
+                            <tr className="border-b bg-gray-50">
+                                <th className="text-left p-3 font-semibold">รหัสลูกค้า</th>
+                                <th className="text-left p-3 font-semibold">ประเภทธุรกิจ</th>
+                                <th className="text-left p-3 font-semibold">ชื่อลูกค้า</th>
+                                <th className="text-left p-3 font-semibold">ที่อยู่</th>
+                                <th className="text-left p-3 font-semibold">ข้อมูลติดต่อ</th>
+                                <th className="text-left p-3 font-semibold">สถานะ</th>
+                                <th className="text-left p-3 font-semibold">การกระทำ</th>
                             </tr>
                         </thead>
                         <tbody>

@@ -107,7 +107,7 @@ export default function ProductList() {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">ข้อมูลสินค้า</h1>
+                <h1 className="text-2xl font-bold text-gray-800">ข้อมูลสินค้า</h1>
                 <button onClick={handleAdd} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
                     <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มสินค้า
                 </button>
@@ -116,15 +116,15 @@ export default function ProductList() {
                 {isLoading ? (
                     <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
                 ) : (
-                    <table className="w-full">
+                    <table className="w-full text-sm">
                         <thead>
-                            <tr className="border-b">
-                                <th className="text-left p-3">รหัสสินค้า</th>
-                                <th className="text-left p-3">ชื่อสินค้า</th>
-                                <th className="text-left p-3">หมวดหมู่</th>
-                                <th className="text-right p-3">ราคา</th>
-                                <th className="text-left p-3">สถานะ</th>
-                                <th className="text-left p-3 pl-6">การกระทำ</th>
+                            <tr className="border-b bg-gray-50">
+                                <th className="text-left p-3 font-semibold">รหัสสินค้า</th>
+                                <th className="text-left p-3 font-semibold">ชื่อสินค้า</th>
+                                <th className="text-left p-3 font-semibold">หมวดหมู่</th>
+                                <th className="text-right p-3 font-semibold">ราคา</th>
+                                <th className="text-left p-3 font-semibold">สถานะ</th>
+                                <th className="text-left p-3 pl-6 font-semibold">การกระทำ</th>
                             </tr>
                         </thead>
                         <tbody>

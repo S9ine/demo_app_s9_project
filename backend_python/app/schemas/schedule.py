@@ -3,7 +3,7 @@ Schedule Schemas
 Pydantic schemas สำหรับ API ตารางงาน
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from datetime import date, datetime
 
 
@@ -28,8 +28,8 @@ class GuardInShift(BaseModel):
 
 class ShiftsData(BaseModel):
     """ข้อมูลกะงาน"""
-    day: List[GuardInShift] = Field(default_factory=list, description="กะกลางวัน")
-    night: List[GuardInShift] = Field(default_factory=list, description="กะกลางคืน")
+    day: List[GuardInShift] = Field(default_factory=list, description="กะกลางวัน")  # type: ignore
+    night: List[GuardInShift] = Field(default_factory=list, description="กะกลางคืน")  # type: ignore
 
 
 # ========== SCHEDULE SCHEMAS ==========

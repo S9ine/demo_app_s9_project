@@ -4,7 +4,7 @@ Schedule API Endpoints
 """
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, func
+from sqlalchemy import select, and_
 from typing import List, Optional
 from datetime import date
 import json
@@ -13,8 +13,8 @@ from app.database import get_db
 from app.models.schedule import Schedule
 from app.models.user import User
 from app.schemas.schedule import (
-    ScheduleCreate, ScheduleUpdate, ScheduleResponse, 
-    ScheduleListItem, ShiftsData
+    ScheduleCreate, ScheduleUpdate, ScheduleResponse,
+    ScheduleListItem
 )
 from app.core.deps import get_current_active_user
 
@@ -49,21 +49,21 @@ async def get_schedules(
     
     return [
         ScheduleListItem(
-            id=s.id,
-            scheduleDate=s.scheduleDate,
-            siteId=s.siteId,
-            siteName=s.siteName,
-            totalGuardsDay=s.totalGuardsDay or 0,
-            totalGuardsNight=s.totalGuardsNight or 0,
-            totalGuards=s.totalGuards or 0,
-            isActive=s.isActive
+            id=s.id,  # type: ignore
+            scheduleDate=s.scheduleDate,  # type: ignore
+            siteId=s.siteId,  # type: ignore
+            siteName=s.siteName,  # type: ignore
+            totalGuardsDay=s.totalGuardsDay or 0,  # type: ignore
+            totalGuardsNight=s.totalGuardsNight or 0,  # type: ignore
+            totalGuards=s.totalGuards or 0,  # type: ignore
+            isActive=s.isActive  # type: ignore
         )
         for s in schedules
     ]
 
 
-@router.get("/schedules/date/{schedule_date}")
-async def get_schedules_by_date(
+@router.get("/schedules/by-date/{schedule_date}")
+async def get_schedules_by_date(  # type: ignore
     schedule_date: date,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -81,12 +81,12 @@ async def get_schedules_by_date(
     )
     schedules = result.scalars().all()
     
-    return {
+    return {  # type: ignore
         schedule_date.isoformat(): {
             str(s.siteId): {
                 "siteId": s.siteId,
                 "siteName": s.siteName,
-                "shifts": json.loads(s.shifts)
+                "shifts": json.loads(s.shifts)  # type: ignore
             }
             for s in schedules
         }
@@ -108,27 +108,27 @@ async def get_schedule(
     if not schedule:
         raise HTTPException(status_code=404, detail="ไม่พบตารางงาน")
     
-    shifts_data = json.loads(schedule.shifts)
+    shifts_data = json.loads(schedule.shifts)  # type: ignore
     
     return ScheduleResponse(
-        id=schedule.id,
-        scheduleDate=schedule.scheduleDate,
-        siteId=schedule.siteId,
-        siteName=schedule.siteName,
-        shifts=ShiftsData(**shifts_data),
-        totalGuardsDay=schedule.totalGuardsDay or 0,
-        totalGuardsNight=schedule.totalGuardsNight or 0,
-        totalGuards=schedule.totalGuards or 0,
-        isActive=schedule.isActive,
-        createdAt=schedule.createdAt,
-        updatedAt=schedule.updatedAt,
-        createdBy=schedule.createdBy,
-        remarks=schedule.remarks
+        id=schedule.id,  # type: ignore
+        scheduleDate=schedule.scheduleDate,  # type: ignore
+        siteId=schedule.siteId,  # type: ignore
+        siteName=schedule.siteName,  # type: ignore
+        shifts=shifts_data,
+        totalGuardsDay=schedule.totalGuardsDay or 0,  # type: ignore
+        totalGuardsNight=schedule.totalGuardsNight or 0,  # type: ignore
+        totalGuards=schedule.totalGuards or 0,  # type: ignore
+        isActive=schedule.isActive,  # type: ignore
+        createdAt=schedule.createdAt,  # type: ignore
+        updatedAt=schedule.updatedAt,  # type: ignore
+        createdBy=schedule.createdBy,  # type: ignore
+        remarks=schedule.remarks  # type: ignore
     )
 
 
 @router.post("/schedules", status_code=201)
-async def create_schedule(
+async def create_schedule(  # type: ignore
     schedule_data: ScheduleCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -176,7 +176,7 @@ async def create_schedule(
     await db.commit()
     await db.refresh(new_schedule)
     
-    return {
+    return {  # type: ignore
         "id": new_schedule.id,
         "scheduleDate": new_schedule.scheduleDate,
         "siteId": new_schedule.siteId,
@@ -185,7 +185,7 @@ async def create_schedule(
 
 
 @router.put("/schedules/{schedule_id}")
-async def update_schedule(
+async def update_schedule(  # type: ignore
     schedule_id: int,
     schedule_data: ScheduleUpdate,
     db: AsyncSession = Depends(get_db),
@@ -221,7 +221,7 @@ async def update_schedule(
     await db.commit()
     await db.refresh(schedule)
     
-    return {
+    return {  # type: ignore
         "id": schedule.id,
         "message": "อัปเดตตารางงานสำเร็จ"
     }

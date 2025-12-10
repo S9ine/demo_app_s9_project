@@ -578,7 +578,7 @@ export default function SettingsPage() {
 
     return (
         <div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-6">ตั้งค่าระบบ</h1>
+            <h1 className="text-2xl font-bold text-gray-800 mb-6">ตั้งค่าระบบ</h1>
             {/* ส่วนแสดงปุ่ม Tab */}
             <div className="flex space-x-4 border-b mb-6">
                 <TabButton label={TABS.USER_SETTINGS} icon={Users} isActive={activeTab === TABS.USER_SETTINGS} />

@@ -119,7 +119,7 @@ export default function StaffList() {
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">ข้อมูลพนักงาน ภายใน</h1>
+                <h1 className="text-2xl font-bold text-gray-800">ข้อมูลพนักงาน ภายใน</h1>
                 <button onClick={() => handleOpenModal()} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
                     <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มพนักงาน
                 </button>
@@ -128,15 +128,15 @@ export default function StaffList() {
                 {isLoading ? (
                     <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
                 ) : (
-                    <table className="w-full">
+                    <table className="w-full text-sm">
                         <thead>
-                            <tr className="border-b">
-                                <th className="text-left p-3">รหัส</th>
-                                <th className="text-left p-3">ชื่อ-สกุล</th>
-                                <th className="text-left p-3">ตำแหน่ง</th>
-                                <th className="text-left p-3">เบอร์โทร</th>
-                                <th className="text-left p-3">สถานะ</th>
-                                <th className="text-left p-3">การกระทำ</th>
+                            <tr className="border-b bg-gray-50">
+                                <th className="text-left p-3 font-semibold">รหัส</th>
+                                <th className="text-left p-3 font-semibold">ชื่อ-สกุล</th>
+                                <th className="text-left p-3 font-semibold">ตำแหน่ง</th>
+                                <th className="text-left p-3 font-semibold">เบอร์โทร</th>
+                                <th className="text-left p-3 font-semibold">สถานะ</th>
+                                <th className="text-left p-3 font-semibold">การกระทำ</th>
                             </tr>
                         </thead>
                         <tbody>
