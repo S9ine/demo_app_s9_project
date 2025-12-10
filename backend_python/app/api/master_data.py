@@ -430,6 +430,37 @@ async def get_sites(  # type: ignore
     return result_list # type: ignore
 
 
+@router.get("/sites/next-code/{customer_id}")
+async def get_next_site_code(  # type: ignore
+    customer_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate next site code for a customer (e.g., C001.01, C001.02)"""
+    try:
+        cid = int(customer_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid customer ID")
+    
+    # Get customer
+    result = await db.execute(select(Customer).where(Customer.id == cid))
+    customer = result.scalar_one_or_none()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Count existing sites for this customer
+    result = await db.execute(
+        select(Site).where(Site.customerId == cid)
+    )
+    sites = result.scalars().all()
+    
+    # Generate next code: customerCode.XX (e.g., C001.01, C001.02)
+    next_number = len(sites) + 1
+    next_code = f"{customer.code}.{next_number:02d}"
+    
+    return {"nextCode": next_code}
+
+
 @router.post("/sites", response_model=SiteResponse)
 async def create_site(  # type: ignore
     site_data: SiteCreate,
@@ -1230,15 +1261,51 @@ async def delete_product(product_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/services", response_model=List[ServiceResponse])
 async def get_services(db: AsyncSession = Depends(get_db)):  # type: ignore
     result = await db.execute(select(Service).order_by(Service.id))
-    return [{"id": str(s.id), "name": s.name, "isActive": s.isActive, "createdAt": s.createdAt} for s in result.scalars().all()]  # type: ignore
+    return [{
+        "id": str(s.id),
+        "serviceCode": s.serviceCode if hasattr(s, 'serviceCode') else f"SVC-{s.id:03d}",
+        "serviceName": s.serviceName if hasattr(s, 'serviceName') else s.name,
+        "remarks": s.remarks if hasattr(s, 'remarks') else None,
+        "hiringRate": s.hiringRate if hasattr(s, 'hiringRate') else 0.0,
+        "diligenceBonus": s.diligenceBonus if hasattr(s, 'diligenceBonus') else 0.0,
+        "sevenDayBonus": s.sevenDayBonus if hasattr(s, 'sevenDayBonus') else 0.0,
+        "pointBonus": s.pointBonus if hasattr(s, 'pointBonus') else 0.0,
+        "isActive": s.isActive,
+        "createdAt": s.createdAt
+    } for s in result.scalars().all()]  # type: ignore
 
 @router.post("/services", response_model=ServiceResponse)
 async def create_service(service_data: ServiceCreate, db: AsyncSession = Depends(get_db)):  # type: ignore
-    new_service = Service(**service_data.model_dump())
+    # Check for duplicate serviceCode
+    result = await db.execute(select(Service).where(Service.serviceCode == service_data.serviceCode))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="รหัสบริการซ้ำ")
+    new_service = Service(
+        serviceCode=service_data.serviceCode,
+        serviceName=service_data.serviceName,
+        name=service_data.serviceName,  # Keep for backward compatibility
+        remarks=service_data.remarks,
+        hiringRate=service_data.hiringRate,
+        diligenceBonus=service_data.diligenceBonus,
+        sevenDayBonus=service_data.sevenDayBonus,
+        pointBonus=service_data.pointBonus,
+        isActive=service_data.isActive
+    )
     db.add(new_service)
     await db.commit()
     await db.refresh(new_service)
-    return {"id": str(new_service.id), "name": new_service.name, "isActive": new_service.isActive, "createdAt": new_service.createdAt}  # type: ignore
+    return {
+        "id": str(new_service.id),
+        "serviceCode": new_service.serviceCode,
+        "serviceName": new_service.serviceName,
+        "remarks": new_service.remarks,
+        "hiringRate": new_service.hiringRate,
+        "diligenceBonus": new_service.diligenceBonus,
+        "sevenDayBonus": new_service.sevenDayBonus,
+        "pointBonus": new_service.pointBonus,
+        "isActive": new_service.isActive,
+        "createdAt": new_service.createdAt
+    }  # type: ignore
 
 @router.put("/services/{service_id}", response_model=ServiceResponse)
 async def update_service(service_id: str, service_data: ServiceUpdate, db: AsyncSession = Depends(get_db)):  # type: ignore
@@ -1251,13 +1318,46 @@ async def update_service(service_id: str, service_data: ServiceUpdate, db: Async
     service = result.scalar_one_or_none()
     if not service:
         raise HTTPException(status_code=404, detail="Service not found")
+    
+    # Check for duplicate serviceCode if changing
+    if service_data.serviceCode and service_data.serviceCode != service.serviceCode:
+        existing = await db.execute(select(Service).where(Service.serviceCode == service_data.serviceCode))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="รหัสบริการซ้ำ")
         
-    for key, value in service_data.model_dump(exclude_unset=True).items():
-        setattr(service, key, value)
+    # Update fields
+    if service_data.serviceCode is not None:
+        service.serviceCode = service_data.serviceCode  # type: ignore[assignment]
+    if service_data.serviceName is not None:
+        service.serviceName = service_data.serviceName  # type: ignore[assignment]
+        service.name = service_data.serviceName  # type: ignore[assignment]
+    if service_data.remarks is not None:
+        service.remarks = service_data.remarks  # type: ignore[assignment]
+    if service_data.hiringRate is not None:
+        service.hiringRate = service_data.hiringRate  # type: ignore[assignment]
+    if service_data.diligenceBonus is not None:
+        service.diligenceBonus = service_data.diligenceBonus  # type: ignore[assignment]
+    if service_data.sevenDayBonus is not None:
+        service.sevenDayBonus = service_data.sevenDayBonus  # type: ignore[assignment]
+    if service_data.pointBonus is not None:
+        service.pointBonus = service_data.pointBonus  # type: ignore[assignment]
+    if service_data.isActive is not None:
+        service.isActive = service_data.isActive  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(service)
-    return {"id": str(service.id), "name": service.name, "isActive": service.isActive, "createdAt": service.createdAt}  # type: ignore
+    return {
+        "id": str(service.id),
+        "serviceCode": service.serviceCode,
+        "serviceName": service.serviceName,
+        "remarks": service.remarks,
+        "hiringRate": service.hiringRate,
+        "diligenceBonus": service.diligenceBonus,
+        "sevenDayBonus": service.sevenDayBonus,
+        "pointBonus": service.pointBonus,
+        "isActive": service.isActive,
+        "createdAt": service.createdAt
+    }  # type: ignore
 
 @router.delete("/services/{service_id}")
 async def delete_service(service_id: str, db: AsyncSession = Depends(get_db)):

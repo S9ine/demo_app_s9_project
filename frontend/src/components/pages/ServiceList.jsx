@@ -32,9 +32,28 @@ export default function ServiceList() {
         fetchServices();
     }, []);
 
-    const handleAdd = () => {
-        setSelectedService(null);
-        setIsModalOpen(true);
+    const handleAdd = async () => {
+        console.log('handleAdd clicked');
+        try {
+            // Generate next service code
+            const maxCode = services.reduce((max, s) => {
+                const match = s.serviceCode.match(/SVC-(\d+)/);
+                if (match) {
+                    const num = parseInt(match[1]);
+                    return num > max ? num : max;
+                }
+                return max;
+            }, 0);
+            const nextCode = `SVC-${String(maxCode + 1).padStart(3, '0')}`;
+            
+            setSelectedService({ serviceCode: nextCode });
+            setIsModalOpen(true);
+            console.log('Generated service code:', nextCode);
+        } catch (error) {
+            console.error('Error generating code:', error);
+            setSelectedService(null);
+            setIsModalOpen(true);
+        }
     };
 
     const handleEdit = (service) => {
@@ -45,7 +64,13 @@ export default function ServiceList() {
     const handleSave = async (serviceData) => {
         try {
             const payload = {
-                name: serviceData.name,
+                serviceCode: serviceData.serviceCode,
+                serviceName: serviceData.serviceName,
+                remarks: serviceData.remarks || '',
+                hiringRate: 0,
+                diligenceBonus: 0,
+                sevenDayBonus: 0,
+                pointBonus: 0,
                 isActive: serviceData.status === 'Active'
             };
 
@@ -96,18 +121,20 @@ export default function ServiceList() {
                     <table className="w-full">
                         <thead>
                             <tr className="border-b">
-                                <th className="text-left p-3">#</th>
+                                <th className="text-left p-3">รหัสบริการ</th>
                                 <th className="text-left p-3">ชื่อบริการ/ตำแหน่ง</th>
-                                <th className="text-left p-3">สถานะ</th>
+                                <th className="text-left p-3">หมายเหตุ</th>
+                                <th className="text-center p-3">สถานะ</th>
                                 <th className="text-left p-3">การกระทำ</th>
                             </tr>
                         </thead>
                         <tbody>
                             {paginatedServices.map((s, index) => (
                                 <tr key={s.id} className="hover:bg-gray-50 border-b">
-                                    <td className="p-3">{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                                    <td className="p-3">{s.name}</td>
-                                    <td className="p-3">
+                                    <td className="p-3 font-mono text-sm">{s.serviceCode}</td>
+                                    <td className="p-3">{s.serviceName}</td>
+                                    <td className="p-3 text-gray-600 text-sm">{s.remarks || '-'}</td>
+                                    <td className="p-3 text-center">
                                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${s.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                             {s.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'}
                                         </span>
@@ -146,7 +173,7 @@ export default function ServiceList() {
                 onClose={() => setIsConfirmOpen(false)}
                 onConfirm={handleDelete}
                 title="ยืนยันการลบบริการ"
-                message={`คุณแน่ใจหรือไม่ว่าต้องการลบบริการ "${serviceToDelete?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+                message={`คุณแน่ใจหรือไม่ว่าต้องการลบบริการ "${serviceToDelete?.serviceName}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
             />
         </div>
     );

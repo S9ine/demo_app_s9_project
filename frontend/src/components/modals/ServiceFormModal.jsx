@@ -1,22 +1,33 @@
 import React, { useState, useEffect } from 'react';
 
 export default function ServiceFormModal({ isOpen, onClose, onSave, service }) {
-    const [formData, setFormData] = useState({});
+    const [formData, setFormData] = useState({
+        id: null,
+        serviceCode: '',
+        serviceName: '',
+        remarks: '',
+        status: 'Active'
+    });
 
     useEffect(() => {
         const initialData = {
             id: service?.id || null,
-            name: service?.name || '',
+            serviceCode: service?.serviceCode || '',
+            serviceName: service?.serviceName || '',
+            remarks: service?.remarks || '',
             status: service?.isActive === false ? 'Inactive' : 'Active'
         };
         setFormData(initialData);
+        console.log('ServiceFormModal initialized:', { service, initialData, isOpen });
     }, [service, isOpen]);
 
     if (!isOpen) return null;
 
     const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const { name, value, type } = e.target;
+        const val = type === 'number' ? (parseFloat(value) || 0) : value;
+        setFormData(prev => ({ ...prev, [name]: val }));
+        console.log('handleChange:', name, val);
     };
 
     const handleSubmit = (e) => {
@@ -31,14 +42,40 @@ export default function ServiceFormModal({ isOpen, onClose, onSave, service }) {
                 <form onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อบริการ/ตำแหน่ง</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">รหัสบริการ *</label>
                             <input
                                 type="text"
-                                name="name"
-                                value={formData.name}
+                                name="serviceCode"
+                                value={formData.serviceCode}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-100"
+                                required
+                                disabled
+                                placeholder="สร้างอัตโนมัติ"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">รหัสสร้างอัตโนมัติ</p>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อบริการ/ตำแหน่ง *</label>
+                            <input
+                                type="text"
+                                name="serviceName"
+                                value={formData.serviceName}
                                 onChange={handleChange}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
                                 required
+                                placeholder="เช่น พนักงานรักษาความปลอดภัย"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">หมายเหตุ</label>
+                            <textarea
+                                name="remarks"
+                                value={formData.remarks}
+                                onChange={handleChange}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                rows="3"
+                                placeholder="เพิ่มหมายเหตุ (ถ้ามี)"
                             />
                         </div>
                         <div>

@@ -121,9 +121,11 @@ class EmploymentDetail(BaseModel):
     position: str = Field(..., description="ชื่อ/ตำแหน่ง")
     quantity: int = Field(..., description="จำนวน", ge=0)
     hiringRate: float = Field(..., description="ราคาจ้าง", ge=0)
+    positionAllowance: float = Field(0.0, description="ค่าตำแหน่ง", ge=0)
     diligenceBonus: float = Field(0.0, description="เบี้ยขยัน", ge=0)
     sevenDayBonus: float = Field(0.0, description="7DAY", ge=0)
     pointBonus: float = Field(0.0, description="ค่าจุด", ge=0)
+    otherAllowance: float = Field(0.0, description="ค่าอื่นๆ", ge=0)
     remarks: Optional[str] = Field(None, description="หมายเหตุ")
 
 
@@ -174,8 +176,8 @@ class SiteCreate(BaseModel):
         """Validate that site code contains no spaces"""
         if ' ' in v:
             raise ValueError('รหัสหน่วยงานต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)')
-        if not re.match(r'^[\w\-]+$', v):
-            raise ValueError('รหัสหน่วยงานต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น')
+        if not re.match(r'^[\w\-\.]+$', v):  # Allow dot (.) for customer.01 format
+            raise ValueError('รหัสหน่วยงานต้องเป็นตัวอักษร ตัวเลข - _ หรือ . เท่านั้น')
         return v
 
 
@@ -206,8 +208,8 @@ class SiteUpdate(BaseModel):
             return v
         if ' ' in v:
             raise ValueError('รหัสหน่วยงานต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)')
-        if not re.match(r'^[\w\-]+$', v):
-            raise ValueError('รหัสหน่วยงานต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น')
+        if not re.match(r'^[\w\.\-]+$', v):
+            raise ValueError('รหัสหน่วยงานต้องเป็นตัวอักษร ตัวเลข . - หรือ _ เท่านั้น')
         return v
 
 
@@ -391,17 +393,55 @@ class ProductResponse(BaseModel):
 # ========== SERVICE SCHEMAS ==========
 
 class ServiceCreate(BaseModel):
-    name: str = Field(..., min_length=1)
+    serviceCode: str = Field(..., min_length=1, description="รหัสบริการ")
+    serviceName: str = Field(..., min_length=1, description="ชื่อบริการ")
+    remarks: Optional[str] = Field(None, description="หมายเหตุ")
+    hiringRate: float = Field(0.0, description="ราคาจ้าง", ge=0)
+    diligenceBonus: float = Field(0.0, description="เบี้ยขยัน", ge=0)
+    sevenDayBonus: float = Field(0.0, description="7DAY", ge=0)
+    pointBonus: float = Field(0.0, description="ค่าจุด", ge=0)
     isActive: bool = True
+
+    @field_validator('serviceCode')
+    @classmethod
+    def code_no_spaces(cls, v: str) -> str:
+        if ' ' in v:
+            raise ValueError('รหัสบริการต้องไม่มีช่องว่าง')
+        if not re.match(r'^[\w\-]+$', v):
+            raise ValueError('รหัสบริการต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น')
+        return v
 
 
 class ServiceUpdate(BaseModel):
-    name: Optional[str] = None
+    serviceCode: Optional[str] = None
+    serviceName: Optional[str] = None
+    remarks: Optional[str] = None
+    hiringRate: Optional[float] = None
+    diligenceBonus: Optional[float] = None
+    sevenDayBonus: Optional[float] = None
+    pointBonus: Optional[float] = None
     isActive: Optional[bool] = None
+
+    @field_validator('serviceCode')
+    @classmethod
+    def code_no_spaces(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        if ' ' in v:
+            raise ValueError('รหัสบริการต้องไม่มีช่องว่าง')
+        if not re.match(r'^[\w\-]+$', v):
+            raise ValueError('รหัสบริการต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น')
+        return v
 
 
 class ServiceResponse(BaseModel):
     id: str
-    name: str
+    serviceCode: str
+    serviceName: str
+    remarks: Optional[str] = None
+    hiringRate: float
+    diligenceBonus: float
+    sevenDayBonus: float
+    pointBonus: float
     isActive: bool
     createdAt: Optional[datetime] = None

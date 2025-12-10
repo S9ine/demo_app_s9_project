@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
 
 export default function ProductFormModal({ isOpen, onClose, onSave, product }) {
-    const [formData, setFormData] = useState({});
+    const [formData, setFormData] = useState({
+        id: null,
+        code: '',
+        name: '',
+        category: '',
+        price: '',
+        status: 'Active'
+    });
 
     useEffect(() => {
         const initialData = {
@@ -34,15 +41,18 @@ export default function ProductFormModal({ isOpen, onClose, onSave, product }) {
                 <form onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">รหัสสินค้า</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">รหัสสินค้า *</label>
                             <input
                                 type="text"
                                 name="code"
                                 value={formData.code}
                                 onChange={handleChange}
                                 required
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                disabled
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 bg-gray-100"
+                                placeholder="สร้างอัตโนมัติ"
                             />
+                            <p className="text-xs text-gray-500 mt-1">รหัสสร้างอัตโนมัติ</p>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">ชื่อสินค้า</label>

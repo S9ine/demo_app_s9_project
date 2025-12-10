@@ -1,7 +1,7 @@
 """
 สคริปต์ทดสอบฟีเจอร์ Download Template และ Import Excel
 """
-import requests
+import requests # type: ignore
 import os
 
 BASE_URL = "http://localhost:8000/api/master-data"
@@ -19,7 +19,7 @@ def get_token():
         print(f"❌ Login failed: {response.status_code}")
         return None
 
-def test_download_template(token):
+def test_download_template(token): # type: ignore
     """Test download template endpoint"""
     print("\n" + "="*60)
     print("🧪 TEST 1: ดาวน์โหลด Customer Template")
@@ -55,7 +55,7 @@ def test_download_template(token):
         print(f"❌ เกิดข้อผิดพลาด: {e}")
         return False
 
-def test_import_excel(token):
+def test_import_excel(token): # type: ignore
     """Test import Excel endpoint"""
     print("\n" + "="*60)
     print("🧪 TEST 2: Import ข้อมูลจาก Excel")
@@ -94,7 +94,7 @@ def test_import_excel(token):
         print(f"❌ เกิดข้อผิดพลาด: {e}")
         return False
 
-def test_list_customers(token):
+def test_list_customers(token): # type: ignore
     """Test list customers to verify import"""
     print("\n" + "="*60)
     print("🧪 TEST 3: ตรวจสอบรายการลูกค้าที่ Import")
@@ -146,7 +146,7 @@ def main():
     
     # 3. Test Import Excel
     if download_success:
-        import_success = test_import_excel(token)
+        import_success = test_import_excel(token) # type: ignore
     
     # 4. Test List Customers
     test_list_customers(token)

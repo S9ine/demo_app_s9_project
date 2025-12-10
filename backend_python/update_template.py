@@ -44,7 +44,7 @@ data = [
 df = pd.DataFrame(data)
 
 # บันทึกเป็น Excel
-df.to_excel('templates/customer_template.xlsx', index=False, engine='openpyxl')
+df.to_excel('templates/customer_template.xlsx', index=False, engine='openpyxl') # type: ignore
 
 print("✅ สร้าง customer_template.xlsx สำเร็จ (อัปเดตโครงสร้างใหม่)")
 print("   - เพิ่มคอลัมน์: ประเภทธุรกิจ, แขวง/ตำบล, เขต/อำเภอ, จังหวัด, รหัสไปรษณีย์")

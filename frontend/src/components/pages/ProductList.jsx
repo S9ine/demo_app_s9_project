@@ -33,9 +33,27 @@ export default function ProductList() {
         fetchProducts();
     }, []);
 
-    const handleAdd = () => {
-        setSelectedProduct(null);
-        setIsModalOpen(true);
+    const handleAdd = async () => {
+        try {
+            // Generate next product code
+            const maxCode = products.reduce((max, p) => {
+                const match = p.code.match(/PRD-(\d+)/);
+                if (match) {
+                    const num = parseInt(match[1]);
+                    return num > max ? num : max;
+                }
+                return max;
+            }, 0);
+            const nextCode = `PRD-${String(maxCode + 1).padStart(3, '0')}`;
+            
+            setSelectedProduct({ code: nextCode });
+            setIsModalOpen(true);
+            console.log('Generated product code:', nextCode);
+        } catch (error) {
+            console.error('Error generating code:', error);
+            setSelectedProduct(null);
+            setIsModalOpen(true);
+        }
     };
 
     const handleEdit = (product) => {

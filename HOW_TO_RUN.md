@@ -112,6 +112,8 @@ python init_db.py
 # Run server
 uvicorn app.main:app --reload --port 8000
 
+python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
 # Check dependencies
 pip list
 ```
