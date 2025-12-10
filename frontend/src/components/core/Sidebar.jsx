@@ -16,7 +16,7 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
         if (savedPage && savedPage !== activePage) {
             setActivePage(savedPage);
         }
-    }, []);
+    }, [activePage, setActivePage]);
 
     const toggleMenu = (menu) => {
         setOpenMenus(prev => ({ ...prev, [menu]: !prev[menu] }));

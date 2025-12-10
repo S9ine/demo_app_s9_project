@@ -3,10 +3,10 @@ import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
 import SiteFormModal from '../modals/SiteFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import GenericExcelImportModal from '../modals/GenericExcelImportModal';
+import { PlusCircle, Edit, Trash2, Download, Search, X, Upload } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
-// เรายังคงใช้ initialServices จาก mockData สำหรับ dropdown ตำแหน่งงาน เพราะยังไม่มี API Master Data สำหรับ Service
-import { initialServices } from '../../data/mockData';
+import * as XLSX from 'xlsx';
 
 export default function SiteList() {
     const [sites, setSites] = useState([]);
@@ -16,6 +16,14 @@ export default function SiteList() {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [siteToDelete, setSiteToDelete] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    // Selection States
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+    
+    // Search State
+    const [searchTerm, setSearchTerm] = useState('');
 
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -103,43 +111,218 @@ export default function SiteList() {
         }
     };
 
-    const paginatedSites = sites.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    // Filter sites based on search
+    const filteredSites = sites.filter(s => {
+        const search = searchTerm.toLowerCase();
+        const customerName = s.customerName || customers.find(c => String(c.id) === String(s.customerId))?.name || '';
+        return (
+            s.siteCode?.toLowerCase().includes(search) ||
+            s.name?.toLowerCase().includes(search) ||
+            customerName.toLowerCase().includes(search) ||
+            s.customerCode?.toLowerCase().includes(search) ||
+            s.address?.toLowerCase().includes(search) ||
+            s.district?.toLowerCase().includes(search) ||
+            s.province?.toLowerCase().includes(search)
+        );
+    });
+
+    const paginatedSites = filteredSites.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    // Selection handlers
+    const handleSelectAll = (e) => {
+        if (e.target.checked) {
+            setSelectedIds(paginatedSites.map(s => s.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (id) => {
+        if (selectedIds.includes(id)) {
+            setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
+        } else {
+            setSelectedIds([...selectedIds, id]);
+        }
+    };
+
+    const isAllSelected = paginatedSites.length > 0 && selectedIds.length === paginatedSites.length;
+    const isSomeSelected = selectedIds.length > 0 && selectedIds.length < paginatedSites.length;
+
+    // Bulk delete handler
+    const handleBulkDelete = async () => {
+        try {
+            await Promise.all(selectedIds.map(id => api.delete(`/sites/${id}`)));
+            fetchData();
+            setSelectedIds([]);
+            setIsBulkDeleteConfirmOpen(false);
+            alert(`✅ ลบข้อมูลหน่วยงาน ${selectedIds.length} รายการเรียบร้อยแล้ว`);
+        } catch {
+            alert('❌ เกิดข้อผิดพลาดในการลบข้อมูล');
+        }
+    };
+
+    // Export to Excel handler
+    const handleExportExcel = () => {
+        const dataToExport = selectedIds.length > 0
+            ? sites.filter(s => selectedIds.includes(s.id))
+            : sites;
+
+        const exportData = dataToExport.map(s => {
+            const customerName = s.customerName || customers.find(c => String(c.id) === String(s.customerId))?.name || '-';
+            return {
+                'รหัสหน่วยงาน': s.siteCode || '-',
+                'ชื่อหน่วยงาน': s.name,
+                'รหัสลูกค้า': s.customerCode || '-',
+                'ชื่อลูกค้า': customerName,
+                'ที่อยู่': s.address || '-',
+                'ตำบล': s.subDistrict || '-',
+                'อำเภอ': s.district || '-',
+                'จังหวัด': s.province || '-',
+                'รหัสไปรษณีย์': s.postalCode || '-',
+                'ผู้ติดต่อ': s.contactPerson || '-',
+                'เบอร์โทร': s.phone || '-',
+                'วันเริ่มสัญญา': s.contractStartDate || '-',
+                'วันสิ้นสุดสัญญา': s.contractEndDate || '-',
+                'สถานะ': s.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Sites');
+        
+        const fileName = selectedIds.length > 0
+            ? `sites_selected_${new Date().toISOString().split('T')[0]}.xlsx`
+            : `sites_all_${new Date().toISOString().split('T')[0]}.xlsx`;
+        
+        XLSX.writeFile(wb, fileName);
+        alert(`📊 Export ข้อมูล ${dataToExport.length} รายการเรียบร้อยแล้ว`);
+    };
 
     return (
         <div>
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-800">ข้อมูลหน่วยงาน</h1>
-                <button onClick={() => handleOpenModal()} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                    <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มหน่วยงาน
-                </button>
+            <div className="flex justify-between items-center mb-6 gap-4">
+                {/* Search Bar */}
+                <div className="flex-1 max-w-md relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                        type="text"
+                        placeholder="ค้นหาจาก รหัส, ชื่อหน่วยงาน, ลูกค้า, ที่อยู่..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    {searchTerm && (
+                        <button
+                            onClick={() => {
+                                setSearchTerm('');
+                                setCurrentPage(1);
+                            }}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex space-x-2">
+                    <button
+                        onClick={handleExportExcel}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center"
+                        title={selectedIds.length > 0 ? `Export ${selectedIds.length} รายการที่เลือก` : 'Export ทั้งหมด'}
+                    >
+                        <Download className="w-5 h-5 mr-2" />
+                        Export Excel {selectedIds.length > 0 && `(${selectedIds.length})`}
+                    </button>
+                    <button
+                        onClick={() => setIsImportModalOpen(true)}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
+                    >
+                        <Upload className="w-5 h-5 mr-2" />
+                        Import Excel
+                    </button>
+                    <button onClick={() => handleOpenModal()} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+                        <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มหน่วยงาน
+                    </button>
+                </div>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+            
+            {selectedIds.length > 0 && (
+                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 flex items-center justify-between rounded-lg">
+                    <div className="flex items-center">
+                        <span className="text-blue-800 font-semibold">เลือก {selectedIds.length} รายการ</span>
+                    </div>
+                    <div className="flex space-x-2">
+                        <button
+                            onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center text-sm"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            ลบที่เลือก ({selectedIds.length})
+                        </button>
+                        <button
+                            onClick={() => setSelectedIds([])}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center text-sm"
+                        >
+                            <X className="w-4 h-4 mr-2" />
+                            ยกเลิก
+                        </button>
+                    </div>
+                </div>
+            )}
+            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="overflow-y-scroll" style={{maxHeight: 'calc(100vh - 280px)'}}>
                 {isLoading ? (
                     <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
                 ) : (
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b bg-gray-50">
-                                <th className="text-left p-3 font-semibold">รหัสหน่วยงาน</th>
-                                <th className="text-left p-3 font-semibold">ชื่อหน่วยงาน</th>
-                                <th className="text-left p-3 font-semibold">ลูกค้า</th>
-                                <th className="text-left p-3 font-semibold">ที่อยู่</th>
-                                <th className="text-left p-3 font-semibold">สถานะ</th>
-                                <th className="text-left p-3 font-semibold">การกระทำ</th>
+                    <table className="w-full text-sm table-fixed">
+                        <thead className="sticky top-0 z-10 bg-gray-100 border-b-2 border-gray-300">
+                            <tr>
+                                <th className="text-left p-3 font-semibold w-12">
+                                    <input
+                                        type="checkbox"
+                                        checked={isAllSelected}
+                                        ref={input => {
+                                            if (input) {
+                                                input.indeterminate = isSomeSelected;
+                                            }
+                                        }}
+                                        onChange={handleSelectAll}
+                                        className="w-4 h-4 cursor-pointer"
+                                    />
+                                </th>
+                                <th className="text-left p-3 font-semibold" style={{width: '120px'}}>รหัสหน่วยงาน</th>
+                                <th className="text-left p-3 font-semibold" style={{width: '200px'}}>ชื่อหน่วยงาน</th>
+                                <th className="text-left p-3 font-semibold" style={{width: '180px'}}>ลูกค้า</th>
+                                <th className="text-left p-3 font-semibold" style={{width: '200px'}}>ที่อยู่</th>
+                                <th className="text-left p-3 font-semibold" style={{width: '100px'}}>สถานะ</th>
+                                <th className="text-left p-3 font-semibold" style={{width: '100px'}}>การกระทำ</th>
                             </tr>
                         </thead>
                         <tbody>
                             {paginatedSites.map(s => (
-                                <tr key={s.id} className="hover:bg-gray-50 border-b">
-                                    <td className="p-3 font-mono text-sm">{s.siteCode || '-'}</td>
-                                    <td className="p-3 font-medium">{s.name}</td>
+                                <tr key={s.id} className={`hover:bg-gray-50 border-b ${selectedIds.includes(s.id) ? 'bg-blue-50' : ''}`}>
                                     <td className="p-3">
-                                        <div className="text-sm">
-                                            <div className="font-medium">{s.customerName || customers.find(c => String(c.id) === String(s.customerId))?.name || "-"}</div>
-                                            <div className="text-gray-500 text-xs">{s.customerCode || ''}</div>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(s.id)}
+                                            onChange={() => handleSelectOne(s.id)}
+                                            className="w-4 h-4 cursor-pointer"
+                                        />
+                                    </td>
+                                    <td className="p-3 font-mono text-sm truncate" title={s.siteCode || '-'}>{s.siteCode || '-'}</td>
+                                    <td className="p-3 font-medium truncate" title={s.name}>{s.name}</td>
+                                    <td className="p-3 truncate">
+                                        <div className="text-sm" title={`${s.customerName || customers.find(c => String(c.id) === String(s.customerId))?.name || "-"} (${s.customerCode || ''})`}>
+                                            <div className="font-medium truncate">{s.customerName || customers.find(c => String(c.id) === String(s.customerId))?.name || "-"}</div>
+                                            <div className="text-gray-500 text-xs truncate">{s.customerCode || ''}</div>
                                         </div>
                                     </td>
-                                    <td className="p-3 text-sm">
+                                    <td className="p-3 text-sm truncate" title={s.district && s.province ? `${s.district}, ${s.province}` : (s.address || '-')}>
                                         {s.district && s.province ? `${s.district}, ${s.province}` : (s.address ? s.address.substring(0, 30) + '...' : '-')}
                                     </td>
                                     <td className="p-3">
@@ -156,12 +339,13 @@ export default function SiteList() {
                         </tbody>
                     </table>
                 )}
+                </div>
             </div>
 
             <PaginationControls
                 currentPage={currentPage}
                 itemsPerPage={itemsPerPage}
-                totalItems={sites.length}
+                totalItems={filteredSites.length}
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={(newItemsPerPage) => {
                     setItemsPerPage(newItemsPerPage);
@@ -182,6 +366,25 @@ export default function SiteList() {
                 onConfirm={handleDelete}
                 title="ยืนยันการลบหน่วยงาน"
                 message={`คุณแน่ใจหรือไม่ว่าต้องการลบหน่วยงาน "${siteToDelete?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+            />
+
+            <ConfirmationModal
+                isOpen={isBulkDeleteConfirmOpen}
+                onClose={() => setIsBulkDeleteConfirmOpen(false)}
+                onConfirm={handleBulkDelete}
+                title="ยืนยันการลบข้อมูลหลายรายการ"
+                message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลหน่วยงาน ${selectedIds.length} รายการ? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+            />
+
+            <GenericExcelImportModal
+                isOpen={isImportModalOpen}
+                onClose={() => setIsImportModalOpen(false)}
+                onSuccess={() => {
+                    setIsImportModalOpen(false);
+                    fetchData();
+                }}
+                entityType="sites"
+                title="Import ข้อมูลหน่วยงาน"
             />
         </div>
     );

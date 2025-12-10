@@ -50,6 +50,54 @@ async def download_customer_template(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+@router.get("/guards/template")
+async def download_guard_template(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Download Excel template for guard import"""
+    template_path = "templates/guard_template.xlsx"
+    
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=404, detail="Template file not found")
+    
+    return FileResponse(
+        path=template_path,
+        filename="guard_template.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+@router.get("/staff/template")
+async def download_staff_template(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Download Excel template for staff import"""
+    template_path = "templates/staff_template.xlsx"
+    
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=404, detail="Template file not found")
+    
+    return FileResponse(
+        path=template_path,
+        filename="staff_template.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+@router.get("/sites/template")
+async def download_site_template(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Download Excel template for site import"""
+    template_path = "templates/site_template.xlsx"
+    
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=404, detail="Template file not found")
+    
+    return FileResponse(
+        path=template_path,
+        filename="site_template.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 
 @router.get("/customers", response_model=List[CustomerResponse])
 async def get_customers(  # type: ignore
@@ -381,6 +429,308 @@ async def import_customers_from_excel(  # type: ignore
             "errorCount": error_count,
             "errors": errors[:10]  # Return first 10 errors only
         } # type: ignore
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาด: {str(e)}")
+
+
+# ========== GUARD ENDPOINTS ==========
+
+@router.post("/guards/import")
+async def import_guards_from_excel(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Import guards from Excel file"""
+    if not file.filename.endswith(('.xlsx', '.xls')):  # type: ignore[union-attr]
+        raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ Excel (.xlsx หรือ .xls)")
+    
+    try:
+        contents = await file.read()
+        df = pd.read_excel(BytesIO(contents))  # type: ignore[call-overload]
+        
+        expected_columns = [
+            'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'เบอร์โทร', 'ที่อยู่',
+            'เลขบัญชี', 'รหัสธนาคาร', 'สถานะ'
+        ]
+        
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            raise HTTPException(
+                status_code=400,
+                detail=f"ไฟล์ขาดคอลัมน์: {', '.join(missing_columns)}"
+            )
+        
+        success_count = 0
+        skipped_count = 0
+        error_count = 0
+        errors = []
+        
+        for index, row in df.iterrows():
+            try:
+                guard_id = str(row['รหัสพนักงาน']).strip()
+                
+                if not guard_id or guard_id == 'nan':
+                    continue
+                
+                # Check if guard already exists
+                result = await db.execute(select(Guard).where(Guard.guardId == guard_id))
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    skipped_count += 1
+                    continue
+                
+                # Parse status
+                status_str = str(row['สถานะ']).strip().lower() if pd.notna(row['สถานะ']) else 'active'
+                is_active = status_str in ['active', 'ใช้งาน', 'เปิด', '1', 'true']
+                
+                new_guard = Guard(
+                    guardId=guard_id,
+                    firstName=str(row['ชื่อ']).strip(),
+                    lastName=str(row['นามสกุล']).strip(),
+                    phone=str(row['เบอร์โทร']).strip() if pd.notna(row['เบอร์โทร']) else None,
+                    address=str(row['ที่อยู่']).strip() if pd.notna(row['ที่อยู่']) else None,
+                    bankAccountNo=str(row['เลขบัญชี']).strip() if pd.notna(row['เลขบัญชี']) else None,
+                    bankCode=str(row['รหัสธนาคาร']).strip() if pd.notna(row['รหัสธนาคาร']) else None,
+                    isActive=is_active
+                )
+                
+                db.add(new_guard)
+                success_count += 1
+                
+            except Exception as e:
+                errors.append(f"แถว {int(index) + 2}: {str(e)}")  # type: ignore[arg-type]
+                error_count += 1
+        
+        if success_count > 0:
+            await db.commit()
+        
+        return {
+            "success": True,
+            "imported": success_count,
+            "skipped": skipped_count,
+            "errors": error_count
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาด: {str(e)}")
+
+
+@router.post("/staff/import")
+async def import_staff_from_excel(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Import staff from Excel file"""
+    if not file.filename.endswith(('.xlsx', '.xls')):  # type: ignore[union-attr]
+        raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ Excel (.xlsx หรือ .xls)")
+    
+    try:
+        contents = await file.read()
+        df = pd.read_excel(BytesIO(contents))  # type: ignore[call-overload]
+        
+        expected_columns = [
+            'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'เลขบัตรประชาชน', 'เบอร์โทร', 'ที่อยู่',
+            'ตำแหน่ง', 'แผนก', 'วันเกิด', 'วันเริ่มงาน', 'เงินเดือน', 'ประเภทเงินเดือน',
+            'วิธีรับเงิน', 'เลขบัญชี', 'รหัสธนาคาร', 'สถานะ'
+        ]
+        
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            raise HTTPException(
+                status_code=400,
+                detail=f"ไฟล์ขาดคอลัมน์: {', '.join(missing_columns)}"
+            )
+        
+        success_count = 0
+        skipped_count = 0
+        error_count = 0
+        errors = []
+        
+        for index, row in df.iterrows():
+            try:
+                staff_id = str(row['รหัสพนักงาน']).strip()
+                
+                if not staff_id or staff_id == 'nan':
+                    continue
+                
+                # Check if staff already exists
+                result = await db.execute(select(Staff).where(Staff.staffId == staff_id))
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    skipped_count += 1
+                    continue
+                
+                # Parse dates
+                birth_date = None
+                if pd.notna(row['วันเกิด']):
+                    birth_date = pd.to_datetime(row['วันเกิด']).date()
+                
+                start_date = None
+                if pd.notna(row['วันเริ่มงาน']):
+                    start_date = pd.to_datetime(row['วันเริ่มงาน']).date()
+                
+                # Parse salary
+                salary = None
+                if pd.notna(row['เงินเดือน']):
+                    try:
+                        salary = float(row['เงินเดือน'])
+                    except:
+                        pass
+                
+                # Parse status
+                status_str = str(row['สถานะ']).strip().lower() if pd.notna(row['สถานะ']) else 'active'
+                is_active = status_str in ['active', 'ใช้งาน', 'เปิด', '1', 'true']
+                
+                new_staff = Staff(
+                    staffId=staff_id,
+                    firstName=str(row['ชื่อ']).strip(),
+                    lastName=str(row['นามสกุล']).strip(),
+                    idCardNumber=str(row['เลขบัตรประชาชน']).strip() if pd.notna(row['เลขบัตรประชาชน']) else None,
+                    phone=str(row['เบอร์โทร']).strip() if pd.notna(row['เบอร์โทร']) else None,
+                    address=str(row['ที่อยู่']).strip() if pd.notna(row['ที่อยู่']) else None,
+                    position=str(row['ตำแหน่ง']).strip() if pd.notna(row['ตำแหน่ง']) else None,
+                    department=str(row['แผนก']).strip() if pd.notna(row['แผนก']) else None,
+                    birthDate=birth_date,
+                    startDate=start_date,
+                    salary=salary,
+                    salaryType=str(row['ประเภทเงินเดือน']).strip() if pd.notna(row['ประเภทเงินเดือน']) else None,
+                    paymentMethod=str(row['วิธีรับเงิน']).strip() if pd.notna(row['วิธีรับเงิน']) else None,
+                    bankAccountNo=str(row['เลขบัญชี']).strip() if pd.notna(row['เลขบัญชี']) else None,
+                    bankCode=str(row['รหัสธนาคาร']).strip() if pd.notna(row['รหัสธนาคาร']) else None,
+                    isActive=is_active
+                )
+                
+                db.add(new_staff)
+                success_count += 1
+                
+            except Exception as e:
+                errors.append(f"แถว {int(index) + 2}: {str(e)}")  # type: ignore[arg-type]
+                error_count += 1
+        
+        if success_count > 0:
+            await db.commit()
+        
+        return {
+            "success": True,
+            "imported": success_count,
+            "skipped": skipped_count,
+            "errors": error_count
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาด: {str(e)}")
+
+
+@router.post("/sites/import")
+async def import_sites_from_excel(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Import sites from Excel file"""
+    if not file.filename.endswith(('.xlsx', '.xls')):  # type: ignore[union-attr]
+        raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ Excel (.xlsx หรือ .xls)")
+    
+    try:
+        contents = await file.read()
+        df = pd.read_excel(BytesIO(contents))  # type: ignore[call-overload]
+        
+        expected_columns = [
+            'รหัสหน่วยงาน', 'ชื่อหน่วยงาน', 'รหัสลูกค้า', 'ชื่อลูกค้า',
+            'วันเริ่มสัญญา', 'วันสิ้นสุดสัญญา', 'ที่อยู่หน่วยงาน',
+            'แขวง/ตำบล', 'เขต/อำเภอ', 'จังหวัด', 'รหัสไปรษณีย์',
+            'ผู้ติดต่อ', 'เบอร์โทร', 'สถานะ'
+        ]
+        
+        missing_columns = [col for col in expected_columns if col not in df.columns]
+        if missing_columns:
+            raise HTTPException(
+                status_code=400,
+                detail=f"ไฟล์ขาดคอลัมน์: {', '.join(missing_columns)}"
+            )
+        
+        success_count = 0
+        skipped_count = 0
+        error_count = 0
+        errors = []
+        
+        for index, row in df.iterrows():
+            try:
+                site_code = str(row['รหัสหน่วยงาน']).strip()
+                customer_code = str(row['รหัสลูกค้า']).strip()
+                
+                if not site_code or site_code == 'nan':
+                    continue
+                
+                # Check if site already exists
+                result = await db.execute(select(Site).where(Site.siteCode == site_code))
+                existing = result.scalar_one_or_none()
+                
+                if existing:
+                    skipped_count += 1
+                    continue
+                
+                # Find customer by code
+                customer_result = await db.execute(select(Customer).where(Customer.code == customer_code))
+                customer = customer_result.scalar_one_or_none()
+                
+                if not customer:
+                    errors.append(f"แถว {int(index) + 2}: ไม่พบลูกค้ารหัส '{customer_code}'")  # type: ignore[arg-type]
+                    error_count += 1
+                    continue
+                
+                # Parse dates
+                contract_start = None
+                if pd.notna(row['วันเริ่มสัญญา']):
+                    contract_start = pd.to_datetime(row['วันเริ่มสัญญา']).date()
+                
+                contract_end = None
+                if pd.notna(row['วันสิ้นสุดสัญญา']):
+                    contract_end = pd.to_datetime(row['วันสิ้นสุดสัญญา']).date()
+                
+                # Parse status
+                status_str = str(row['สถานะ']).strip().lower() if pd.notna(row['สถานะ']) else 'active'
+                is_active = status_str in ['active', 'ใช้งาน', 'เปิด', '1', 'true']
+                
+                new_site = Site(
+                    siteCode=site_code,
+                    name=str(row['ชื่อหน่วยงาน']).strip(),
+                    customerId=customer.id,
+                    customerCode=customer.code,
+                    customerName=customer.name,
+                    contractStartDate=contract_start,
+                    contractEndDate=contract_end,
+                    address=str(row['ที่อยู่หน่วยงาน']).strip() if pd.notna(row['ที่อยู่หน่วยงาน']) else None,
+                    subDistrict=str(row['แขวง/ตำบล']).strip() if pd.notna(row['แขวง/ตำบล']) else None,
+                    district=str(row['เขต/อำเภอ']).strip() if pd.notna(row['เขต/อำเภอ']) else None,
+                    province=str(row['จังหวัด']).strip() if pd.notna(row['จังหวัด']) else None,
+                    postalCode=str(row['รหัสไปรษณีย์']).strip() if pd.notna(row['รหัสไปรษณีย์']) else None,
+                    contactPerson=str(row['ผู้ติดต่อ']).strip() if pd.notna(row['ผู้ติดต่อ']) else None,
+                    phone=str(row['เบอร์โทร']).strip() if pd.notna(row['เบอร์โทร']) else None,
+                    isActive=is_active
+                )
+                
+                db.add(new_site)
+                success_count += 1
+                
+            except Exception as e:
+                errors.append(f"แถว {int(index) + 2}: {str(e)}")  # type: ignore[arg-type]
+                error_count += 1
+        
+        if success_count > 0:
+            await db.commit()
+        
+        return {
+            "success": True,
+            "imported": success_count,
+            "skipped": skipped_count,
+            "errors": error_count
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาด: {str(e)}")

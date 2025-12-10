@@ -74,23 +74,29 @@ export default function Dashboard({ setActivePage }) {
     };
 
     const StatCard = ({ title, value, subtitle, icon: Icon, color, bgColor, trend, trendValue }) => (
-        <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 p-6 border border-gray-100">
-            <div className="flex items-start justify-between">
-                <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-                    <h3 className="text-3xl font-bold text-gray-900 mb-2">{value}</h3>
-                    {subtitle && (
-                        <p className="text-sm text-gray-500">{subtitle}</p>
-                    )}
+        <div className="group bg-white rounded-2xl shadow-sm hover:shadow-2xl transition-all duration-300 p-6 border border-gray-100 hover:border-gray-200 relative overflow-hidden">
+            {/* Gradient overlay on hover */}
+            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-gray-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            
+            <div className="relative z-10">
+                <div className="flex items-start justify-between mb-4">
+                    <div className={`${bgColor} p-4 rounded-2xl shadow-sm group-hover:scale-110 transition-transform duration-300`}>
+                        <Icon className={`w-7 h-7 ${color}`} />
+                    </div>
                     {trend && (
-                        <div className={`flex items-center mt-2 text-sm ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                        <div className={`flex items-center text-sm font-semibold ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
                             {trend === 'up' ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
-                            <span className="font-medium">{trendValue}</span>
+                            <span>{trendValue}</span>
                         </div>
                     )}
                 </div>
-                <div className={`${bgColor} p-3 rounded-xl`}>
-                    <Icon className={`w-6 h-6 ${color}`} />
+                
+                <div className="space-y-2">
+                    <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{title}</p>
+                    <h3 className="text-4xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">{value}</h3>
+                    {subtitle && (
+                        <p className="text-sm text-gray-500 leading-relaxed">{subtitle}</p>
+                    )}
                 </div>
             </div>
         </div>
@@ -99,17 +105,20 @@ export default function Dashboard({ setActivePage }) {
     const QuickActionCard = ({ title, description, icon: Icon, color, onClick }) => (
         <button
             onClick={onClick}
-            className="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-200 p-5 border border-gray-100 text-left group w-full"
+            className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 p-6 border border-gray-100 hover:border-blue-200 text-left relative overflow-hidden"
         >
-            <div className="flex items-start space-x-4">
-                <div className={`${color} p-3 rounded-lg group-hover:scale-110 transition-transform`}>
-                    <Icon className="w-5 h-5 text-white" />
+            {/* Animated gradient background */}
+            <div className={`absolute inset-0 ${color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`}></div>
+            
+            <div className="relative z-10 flex items-center space-x-4">
+                <div className={`${color} p-4 rounded-2xl shadow-lg group-hover:shadow-xl group-hover:scale-110 transition-all duration-300`}>
+                    <Icon className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900 mb-1">{title}</h4>
-                    <p className="text-sm text-gray-600">{description}</p>
+                    <h4 className="font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">{title}</h4>
+                    <p className="text-sm text-gray-600 leading-relaxed">{description}</p>
                 </div>
-                <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" />
+                <ArrowUpRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 group-hover:-translate-y-1 transition-all duration-300" />
             </div>
         </button>
     );
@@ -123,19 +132,34 @@ export default function Dashboard({ setActivePage }) {
     }
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl shadow-lg p-8 text-white">
-                <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-                <p className="text-blue-100">ภาพรวมของระบบจัดการ</p>
-                <div className="mt-4 flex items-center space-x-2 text-sm text-blue-100">
-                    <Clock className="w-4 h-4" />
-                    <span>อัพเดตล่าสุด: {new Date().toLocaleString('th-TH')}</span>
+        <div className="space-y-8 pb-8">
+            {/* Header with enhanced gradient */}
+            <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 rounded-3xl shadow-2xl p-10 text-white overflow-hidden">
+                {/* Decorative elements */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-32 -mt-32"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-5 rounded-full -ml-24 -mb-24"></div>
+                
+                <div className="relative z-10">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-4xl font-bold mb-3 tracking-tight">Dashboard</h1>
+                            <p className="text-blue-100 text-lg">ภาพรวมของระบบจัดการ</p>
+                        </div>
+                        <div className="hidden lg:flex items-center space-x-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl">
+                            <Clock className="w-5 h-5" />
+                            <span className="text-sm">อัพเดต: {new Date().toLocaleString('th-TH', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            {/* Main Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Main Stats Grid with better spacing */}
+            <div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-5 flex items-center">
+                    <div className="w-1 h-8 bg-blue-600 rounded-full mr-3"></div>
+                    สถิติหลัก
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
                     title="ลูกค้าทั้งหมด"
                     value={stats.customers.total}
@@ -169,9 +193,15 @@ export default function Dashboard({ setActivePage }) {
                     bgColor="bg-teal-100"
                 />
             </div>
+            </div>
 
-            {/* Secondary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Secondary Stats with section header */}
+            <div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-5 flex items-center">
+                    <div className="w-1 h-8 bg-green-600 rounded-full mr-3"></div>
+                    บริการและสินค้า
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard
                     title="บริการทั้งหมด"
                     value={stats.services.total}
@@ -197,11 +227,15 @@ export default function Dashboard({ setActivePage }) {
                     bgColor="bg-amber-100"
                 />
             </div>
+            </div>
 
-            {/* Quick Actions */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">เมนูด่วน</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Quick Actions with enhanced styling */}
+            <div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-5 flex items-center">
+                    <div className="w-1 h-8 bg-purple-600 rounded-full mr-3"></div>
+                    เมนูด่วน
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     <QuickActionCard
                         title="เพิ่มลูกค้า"
                         description="เพิ่มข้อมูลลูกค้าใหม่"
@@ -247,49 +281,61 @@ export default function Dashboard({ setActivePage }) {
                 </div>
             </div>
 
-            {/* Status Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">สถานะระบบ</h3>
+            {/* Status Summary with enhanced design */}
+            <div>
+                <h2 className="text-2xl font-bold text-gray-800 mb-5 flex items-center">
+                    <div className="w-1 h-8 bg-orange-600 rounded-full mr-3"></div>
+                    สถานะและการแจ้งเตือน
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl shadow-sm p-7 border border-gray-100 hover:shadow-xl transition-all duration-300">
+                    <h3 className="text-xl font-bold text-gray-900 mb-5 flex items-center">
+                        <CheckCircle className="w-6 h-6 text-green-600 mr-2" />
+                        สถานะระบบ
+                    </h3>
                     <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
                             <div className="flex items-center space-x-3">
-                                <CheckCircle className="w-5 h-5 text-green-600" />
-                                <span className="font-medium text-gray-700">ระบบทำงานปกติ</span>
+                                <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
+                                <span className="font-semibold text-gray-700">ระบบทำงานปกติ</span>
                             </div>
-                            <span className="text-sm text-green-600 font-medium">Online</span>
+                            <span className="text-sm text-green-600 font-bold">Online</span>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-100">
                             <div className="flex items-center space-x-3">
                                 <Users className="w-5 h-5 text-blue-600" />
-                                <span className="font-medium text-gray-700">ผู้ใช้งานออนไลน์</span>
+                                <span className="font-semibold text-gray-700">ผู้ใช้งานออนไลน์</span>
                             </div>
-                            <span className="text-sm text-blue-600 font-medium">1 คน</span>
+                            <span className="text-sm text-blue-600 font-bold">1 คน</span>
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">แจ้งเตือน</h3>
+                <div className="bg-white rounded-2xl shadow-sm p-7 border border-gray-100 hover:shadow-xl transition-all duration-300">
+                    <h3 className="text-xl font-bold text-gray-900 mb-5 flex items-center">
+                        <AlertCircle className="w-6 h-6 text-yellow-600 mr-2" />
+                        แจ้งเตือน
+                    </h3>
                     <div className="space-y-3">
-                        <div className="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
-                            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                        <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-xl border border-yellow-100">
+                            <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
                             <div className="flex-1">
-                                <p className="font-medium text-gray-700">เอกสารรออนุมัติ</p>
+                                <p className="font-semibold text-gray-700">เอกสารรออนุมัติ</p>
                                 <p className="text-sm text-gray-600 mt-1">มี {stats.advances.pending} เอกสารรออนุมัติ</p>
                             </div>
                         </div>
                         {stats.customers.inactive > 0 && (
-                            <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                                <AlertCircle className="w-5 h-5 text-gray-600 mt-0.5" />
+                            <div className="flex items-start space-x-3 p-4 bg-gradient-to-r from-gray-50 to-slate-50 rounded-xl border border-gray-200">
+                                <AlertCircle className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
                                 <div className="flex-1">
-                                    <p className="font-medium text-gray-700">ลูกค้าไม่ได้ใช้งาน</p>
+                                    <p className="font-semibold text-gray-700">ลูกค้าไม่ได้ใช้งาน</p>
                                     <p className="text-sm text-gray-600 mt-1">มี {stats.customers.inactive} รายการ</p>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     );
