@@ -739,7 +739,8 @@ async def get_guards(  # type: ignore
         {
             "id": str(g.id),
             "guardId": g.guardId,
-            "name": g.name,
+            "firstName": g.firstName,
+            "lastName": g.lastName,
             "phone": g.phone,
             "address": g.address,
             "bankAccountNo": g.bankAccountNo,
@@ -765,7 +766,8 @@ async def create_guard( # type: ignore
     
     new_guard = Guard(
         guardId=guard_data.guardId,
-        name=guard_data.name,
+        firstName=guard_data.firstName,
+        lastName=guard_data.lastName,
         phone=guard_data.phone,
         address=guard_data.address,
         bankAccountNo=guard_data.bankAccountNo,
@@ -780,7 +782,8 @@ async def create_guard( # type: ignore
     return {  # type: ignore
         "id": str(new_guard.id),
         "guardId": new_guard.guardId,
-        "name": new_guard.name,
+        "firstName": new_guard.firstName,
+        "lastName": new_guard.lastName,
         "phone": new_guard.phone,
         "address": new_guard.address,
         "bankAccountNo": new_guard.bankAccountNo,
@@ -811,7 +814,8 @@ async def get_guard(  # type: ignore
     return {  # type: ignore
         "id": str(guard.id),
         "guardId": guard.guardId,
-        "name": guard.name,
+        "firstName": guard.firstName,
+        "lastName": guard.lastName,
         "phone": guard.phone,
         "address": guard.address,
         "bankAccountNo": guard.bankAccountNo,
@@ -840,8 +844,10 @@ async def update_guard(  # type: ignore
     if not guard:
         raise HTTPException(status_code=404, detail="Guard not found")
     
-    if guard_data.name is not None:
-        guard.name = guard_data.name  # type: ignore[assignment]
+    if guard_data.firstName is not None:
+        guard.firstName = guard_data.firstName  # type: ignore[assignment]
+    if guard_data.lastName is not None:
+        guard.lastName = guard_data.lastName  # type: ignore[assignment]
     if guard_data.phone is not None:
         guard.phone = guard_data.phone  # type: ignore[assignment]
     if guard_data.address is not None:
@@ -859,7 +865,8 @@ async def update_guard(  # type: ignore
     return {  # type: ignore
         "id": str(guard.id),
         "guardId": guard.guardId,
-        "name": guard.name,
+        "firstName": guard.firstName,
+        "lastName": guard.lastName,
         "phone": guard.phone,
         "address": guard.address,
         "bankAccountNo": guard.bankAccountNo,
@@ -908,7 +915,8 @@ async def get_staff(  # type: ignore
         {
             "id": str(s.id),
             "guardId": s.staffId,
-            "name": s.name,
+            "firstName": s.firstName,
+            "lastName": s.lastName,
             "phone": s.phone,
             "address": s.address,
             "bankAccountNo": s.bankAccountNo,
@@ -934,7 +942,8 @@ async def create_staff(  # type: ignore
     
     new_staff = Staff(
         staffId=staff_data.guardId,
-        name=staff_data.name,
+        firstName=staff_data.firstName,
+        lastName=staff_data.lastName,
         phone=staff_data.phone,
         address=staff_data.address,
         bankAccountNo=staff_data.bankAccountNo,
@@ -949,7 +958,8 @@ async def create_staff(  # type: ignore
     return {  # type: ignore
         "id": str(new_staff.id),
         "guardId": new_staff.staffId,
-        "name": new_staff.name,
+        "firstName": new_staff.firstName,
+        "lastName": new_staff.lastName,
         "phone": new_staff.phone,
         "address": new_staff.address,
         "bankAccountNo": new_staff.bankAccountNo,
@@ -980,7 +990,8 @@ async def get_staff_member(  # type: ignore
     return {  # type: ignore
         "id": str(staff.id),
         "guardId": staff.staffId,
-        "name": staff.name,
+        "firstName": staff.firstName,
+        "lastName": staff.lastName,
         "phone": staff.phone,
         "address": staff.address,
         "bankAccountNo": staff.bankAccountNo,
@@ -1009,8 +1020,10 @@ async def update_staff(  # type: ignore
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
     
-    if staff_data.name is not None:
-        staff.name = staff_data.name  # type: ignore[assignment]
+    if staff_data.firstName is not None:
+        staff.firstName = staff_data.firstName  # type: ignore[assignment]
+    if staff_data.lastName is not None:
+        staff.lastName = staff_data.lastName  # type: ignore[assignment]
     if staff_data.phone is not None:
         staff.phone = staff_data.phone  # type: ignore[assignment]
     if staff_data.address is not None:
@@ -1028,7 +1041,8 @@ async def update_staff(  # type: ignore
     return {  # type: ignore
         "id": str(staff.id),
         "guardId": staff.staffId,
-        "name": staff.name,
+        "firstName": staff.firstName,
+        "lastName": staff.lastName,
         "phone": staff.phone,
         "address": staff.address,
         "bankAccountNo": staff.bankAccountNo,

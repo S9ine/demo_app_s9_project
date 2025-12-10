@@ -256,9 +256,10 @@ export default function Scheduler() {
     const displayedUnscheduledSites = unscheduledSites.slice(0, 5);
     const displayedScheduledSites = scheduledSites.slice(0, 5);
 
-    const filteredAvailableGuards = availableGuards.filter(guard =>
-        guard.name.toLowerCase().includes(guardSearchTerm.toLowerCase())
-    );
+    const filteredAvailableGuards = availableGuards.filter(guard => {
+        const fullName = `${guard.firstName || ''} ${guard.lastName || ''}`.toLowerCase();
+        return fullName.includes(guardSearchTerm.toLowerCase());
+    });
 
     return (
         <div>
@@ -376,7 +377,7 @@ export default function Scheduler() {
                                             className="flex items-center p-3 bg-white border rounded-lg shadow-sm cursor-grab active:cursor-grabbing"
                                         >
                                             <GripVertical className="w-5 h-5 text-gray-400 mr-3" />
-                                            {guard.name}
+                                            {guard.firstName} {guard.lastName}
                                         </div>
                                     ))}
                                 </div>
@@ -403,7 +404,7 @@ export default function Scheduler() {
                                                 className="p-3 bg-white border border-blue-200 rounded-lg shadow-sm flex justify-between items-center cursor-grab active:cursor-grabbing"
                                             >
                                                 <div>
-                                                    <p className="font-semibold">{g.name}</p>
+                                                    <p className="font-semibold">{g.firstName} {g.lastName}</p>
                                                     <p className="text-sm text-gray-600">{g.position} - {g.payoutRate.toLocaleString()} บาท</p>
                                                 </div>
                                                 <button onClick={() => removeGuardFromShift(g, 'day')} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
@@ -431,7 +432,7 @@ export default function Scheduler() {
                                                 className="p-3 bg-white border border-indigo-200 rounded-lg shadow-sm flex justify-between items-center cursor-grab active:cursor-grabbing"
                                             >
                                                 <div>
-                                                    <p className="font-semibold">{g.name}</p>
+                                                    <p className="font-semibold">{g.firstName} {g.lastName}</p>
                                                     <p className="text-sm text-gray-600">{g.position} - {g.payoutRate.toLocaleString()} บาท</p>
                                                 </div>
                                                 <button onClick={() => removeGuardFromShift(g, 'night')} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
@@ -453,7 +454,7 @@ export default function Scheduler() {
             {isPositionModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60]">
                     <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
-                        <h3 className="text-lg font-bold mb-4">เลือกตำแหน่งสำหรับ {guardForPosition?.name}</h3>
+                        <h3 className="text-lg font-bold mb-4">เลือกตำแหน่งสำหรับ {guardForPosition?.firstName} {guardForPosition?.lastName}</h3>
 
                         {!showManualInput ? (
                             <div className="space-y-2">

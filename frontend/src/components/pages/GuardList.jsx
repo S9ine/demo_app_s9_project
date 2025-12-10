@@ -30,13 +30,12 @@ export default function GuardList() {
             // แปลงข้อมูลจาก Backend ให้ตรงกับที่ Modal ต้องการ
             setGuards(guardsRes.data.map(g => ({
                 ...g,
-                title: 'นาย', // ค่า default
+                status: g.isActive ? 'Active' : 'Inactive',
                 paymentInfo: {
                     accountNumber: g.bankAccountNo,
                     bankName: banksRes.data.find(b => b.code === g.bankCode)?.name || g.bankCode || '',
                     accountName: '',
-                },
-                startDate: new Date().toISOString().split('T')[0] // ค่า default
+                }
             })));
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -63,7 +62,8 @@ export default function GuardList() {
         try {
             const payload = {
                 guardId: guardData.guardId,
-                name: guardData.name,
+                firstName: guardData.firstName,
+                lastName: guardData.lastName,
                 phone: guardData.phone,
                 address: guardData.address,
                 bankAccountNo: guardData.paymentInfo?.accountNumber || "",
@@ -129,7 +129,7 @@ export default function GuardList() {
                             {paginatedGuards.map(g => (
                                 <tr key={g.id} className="hover:bg-gray-50 border-b">
                                     <td className="p-3">{g.guardId}</td>
-                                    <td className="p-3">{g.title}{g.name}</td>
+                                    <td className="p-3">{g.firstName} {g.lastName}</td>
                                     <td className="p-3">{g.phone}</td>
                                     <td className="p-3">
                                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${g.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -170,7 +170,7 @@ export default function GuardList() {
                 onClose={() => setIsConfirmOpen(false)}
                 onConfirm={handleDelete}
                 title="ยืนยันการลบพนักงาน"
-                message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลของ "${guardToDelete?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+                message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลของ "${guardToDelete?.firstName} ${guardToDelete?.lastName}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
             />
         </div>
     );

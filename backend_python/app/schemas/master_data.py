@@ -239,7 +239,8 @@ class SiteResponse(BaseModel):
 
 class GuardCreate(BaseModel):
     guardId: str = Field(..., min_length=1, description="รหัสพนักงาน (ไม่อนุญาตให้มีช่องว่าง)")
-    name: str = Field(..., min_length=1)
+    firstName: str = Field(..., min_length=1)
+    lastName: str = Field(..., min_length=1)
     phone: Optional[str] = None
     address: Optional[str] = None
     bankAccountNo: Optional[str] = None
@@ -259,7 +260,8 @@ class GuardCreate(BaseModel):
 
 class GuardUpdate(BaseModel):
     guardId: Optional[str] = None
-    name: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     bankAccountNo: Optional[str] = None
@@ -282,7 +284,8 @@ class GuardUpdate(BaseModel):
 class GuardResponse(BaseModel):
     id: str
     guardId: str
-    name: str
+    firstName: str
+    lastName: str
     phone: Optional[str] = None
     address: Optional[str] = None
     bankAccountNo: Optional[str] = None

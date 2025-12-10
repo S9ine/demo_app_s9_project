@@ -8,7 +8,8 @@ export default function GuardFormModal({ isOpen, onClose, onSave, guard, banks =
             id: guard?.id || null,
             guardId: guard?.guardId || '',
             title: guard?.title || 'นาย',
-            name: guard?.name || '',
+            firstName: guard?.firstName || '',
+            lastName: guard?.lastName || '',
             phone: guard?.phone || '',
             email: guard?.email || '',
             nationalId: guard?.nationalId || '',
@@ -67,9 +68,13 @@ export default function GuardFormModal({ isOpen, onClose, onSave, guard, banks =
                                 <option>นางสาว</option>
                             </select>
                         </div>
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700">ชื่อ-สกุล</label>
-                            <input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">ชื่อ</label>
+                            <input type="text" name="firstName" value={formData.firstName || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">นามสกุล</label>
+                            <input type="text" name="lastName" value={formData.lastName || ''} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" required />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700">เบอร์โทรศัพท์</label>

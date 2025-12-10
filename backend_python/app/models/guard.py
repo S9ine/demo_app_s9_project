@@ -9,7 +9,8 @@ class Guard(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     guardId = Column(String(50), unique=True, nullable=False, index=True)
-    name = Column(String(200), nullable=False)
+    firstName = Column(String(100), nullable=False)
+    lastName = Column(String(100), nullable=False)
     phone = Column(String(20), nullable=True)
     address = Column(String(500), nullable=True)
     bankAccountNo = Column(String(50), nullable=True)
