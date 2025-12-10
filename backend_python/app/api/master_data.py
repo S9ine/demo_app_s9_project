@@ -14,8 +14,7 @@ from app.schemas.master_data import (
     StaffCreate, StaffUpdate, StaffResponse,
     BankCreate, BankUpdate, BankResponse,
     ProductCreate, ProductUpdate, ProductResponse,
-    ServiceCreate, ServiceUpdate, ServiceResponse,
-    SiteServiceRateCreate, SiteServiceRateUpdate, SiteServiceRateResponse
+    ServiceCreate, ServiceUpdate, ServiceResponse
 )
 from app.core.deps import get_current_active_user
 from app.database import get_db
@@ -27,7 +26,6 @@ from app.models.bank import Bank
 from app.models.user import User
 from app.models.product import Product
 from app.models.service import Service
-from app.models.site_service_rate import SiteServiceRate
 import json
 
 
@@ -919,8 +917,16 @@ async def get_staff(  # type: ignore
             "guardId": s.staffId,
             "firstName": s.firstName,
             "lastName": s.lastName,
+            "idCardNumber": s.idCardNumber,
             "phone": s.phone,
             "address": s.address,
+            "position": s.position,
+            "department": s.department,
+            "startDate": s.startDate,
+            "birthDate": s.birthDate,
+            "salary": s.salary,
+            "salaryType": s.salaryType,
+            "paymentMethod": s.paymentMethod,
             "bankAccountNo": s.bankAccountNo,
             "bankCode": s.bankCode,
             "isActive": s.isActive,
@@ -946,8 +952,16 @@ async def create_staff(  # type: ignore
         staffId=staff_data.guardId,
         firstName=staff_data.firstName,
         lastName=staff_data.lastName,
+        idCardNumber=staff_data.idCardNumber,
         phone=staff_data.phone,
         address=staff_data.address,
+        position=staff_data.position,
+        department=staff_data.department,
+        startDate=staff_data.startDate,
+        birthDate=staff_data.birthDate,
+        salary=staff_data.salary,
+        salaryType=staff_data.salaryType,
+        paymentMethod=staff_data.paymentMethod,
         bankAccountNo=staff_data.bankAccountNo,
         bankCode=staff_data.bankCode,
         isActive=staff_data.isActive
@@ -962,8 +976,16 @@ async def create_staff(  # type: ignore
         "guardId": new_staff.staffId,
         "firstName": new_staff.firstName,
         "lastName": new_staff.lastName,
+        "idCardNumber": new_staff.idCardNumber,
         "phone": new_staff.phone,
         "address": new_staff.address,
+        "position": new_staff.position,
+        "department": new_staff.department,
+        "startDate": new_staff.startDate,
+        "birthDate": new_staff.birthDate,
+        "salary": new_staff.salary,
+        "salaryType": new_staff.salaryType,
+        "paymentMethod": new_staff.paymentMethod,
         "bankAccountNo": new_staff.bankAccountNo,
         "bankCode": new_staff.bankCode,
         "isActive": new_staff.isActive,
@@ -994,8 +1016,16 @@ async def get_staff_member(  # type: ignore
         "guardId": staff.staffId,
         "firstName": staff.firstName,
         "lastName": staff.lastName,
+        "idCardNumber": staff.idCardNumber,
         "phone": staff.phone,
         "address": staff.address,
+        "position": staff.position,
+        "department": staff.department,
+        "startDate": staff.startDate,
+        "birthDate": staff.birthDate,
+        "salary": staff.salary,
+        "salaryType": staff.salaryType,
+        "paymentMethod": staff.paymentMethod,
         "bankAccountNo": staff.bankAccountNo,
         "bankCode": staff.bankCode,
         "isActive": staff.isActive,
@@ -1026,10 +1056,26 @@ async def update_staff(  # type: ignore
         staff.firstName = staff_data.firstName  # type: ignore[assignment]
     if staff_data.lastName is not None:
         staff.lastName = staff_data.lastName  # type: ignore[assignment]
+    if staff_data.idCardNumber is not None:
+        staff.idCardNumber = staff_data.idCardNumber  # type: ignore[assignment]
     if staff_data.phone is not None:
         staff.phone = staff_data.phone  # type: ignore[assignment]
     if staff_data.address is not None:
         staff.address = staff_data.address  # type: ignore[assignment]
+    if staff_data.position is not None:
+        staff.position = staff_data.position  # type: ignore[assignment]
+    if staff_data.department is not None:
+        staff.department = staff_data.department  # type: ignore[assignment]
+    if staff_data.startDate is not None:
+        staff.startDate = staff_data.startDate  # type: ignore[assignment]
+    if staff_data.birthDate is not None:
+        staff.birthDate = staff_data.birthDate  # type: ignore[assignment]
+    if staff_data.salary is not None:
+        staff.salary = staff_data.salary  # type: ignore[assignment]
+    if staff_data.salaryType is not None:
+        staff.salaryType = staff_data.salaryType  # type: ignore[assignment]
+    if staff_data.paymentMethod is not None:
+        staff.paymentMethod = staff_data.paymentMethod  # type: ignore[assignment]
     if staff_data.bankAccountNo is not None:
         staff.bankAccountNo = staff_data.bankAccountNo  # type: ignore[assignment]
     if staff_data.bankCode is not None:
@@ -1045,8 +1091,16 @@ async def update_staff(  # type: ignore
         "guardId": staff.staffId,
         "firstName": staff.firstName,
         "lastName": staff.lastName,
+        "idCardNumber": staff.idCardNumber,
         "phone": staff.phone,
         "address": staff.address,
+        "position": staff.position,
+        "department": staff.department,
+        "startDate": staff.startDate,
+        "birthDate": staff.birthDate,
+        "salary": staff.salary,
+        "salaryType": staff.salaryType,
+        "paymentMethod": staff.paymentMethod,
         "bankAccountNo": staff.bankAccountNo,
         "bankCode": staff.bankCode,
         "isActive": staff.isActive,
@@ -1390,229 +1444,3 @@ async def delete_service(service_id: str, db: AsyncSession = Depends(get_db)):
     await db.delete(service)
     await db.commit()
     return {"message": "Service deleted"}
-
-
-# ========== SITE SERVICE RATE ENDPOINTS ==========
-
-@router.get("/site-service-rates", response_model=List[SiteServiceRateResponse])
-async def get_site_service_rates(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """ดึงรายการอัตราค่าจ้างเฉพาะหน่วยงานทั้งหมด"""
-    result = await db.execute(
-        select(SiteServiceRate, Site, Service)
-        .join(Site, SiteServiceRate.siteId == Site.id)
-        .join(Service, SiteServiceRate.serviceId == Service.id)
-        .order_by(SiteServiceRate.id)
-    )
-    
-    rates = []
-    for rate, site, service in result:
-        # คำนวณ effective rates (ถ้า useDefaultRate = True หรือ customRate = None ใช้ default)
-        effective_rate = rate.customRate if (not rate.useDefaultRate and rate.customRate is not None) else service.hiringRate
-        effective_diligence = rate.customDiligenceBonus if (not rate.useDefaultRate and rate.customDiligenceBonus is not None) else service.diligenceBonus
-        effective_seven_day = rate.customSevenDayBonus if (not rate.useDefaultRate and rate.customSevenDayBonus is not None) else service.sevenDayBonus
-        effective_point = rate.customPointBonus if (not rate.useDefaultRate and rate.customPointBonus is not None) else service.pointBonus
-        
-        rates.append({
-            "id": rate.id,
-            "siteId": rate.siteId,
-            "serviceId": rate.serviceId,
-            
-            # Site Info
-            "siteName": site.name,
-            "siteCode": site.siteCode,
-            
-            # Service Info
-            "serviceName": service.serviceName,
-            "serviceCode": service.serviceCode,
-            
-            # Default Rates
-            "defaultRate": float(service.hiringRate),
-            "defaultDiligenceBonus": float(service.diligenceBonus),
-            "defaultSevenDayBonus": float(service.sevenDayBonus),
-            "defaultPointBonus": float(service.pointBonus),
-            
-            # Custom Rates
-            "customRate": float(rate.customRate) if rate.customRate else None,
-            "customDiligenceBonus": float(rate.customDiligenceBonus) if rate.customDiligenceBonus else None,
-            "customSevenDayBonus": float(rate.customSevenDayBonus) if rate.customSevenDayBonus else None,
-            "customPointBonus": float(rate.customPointBonus) if rate.customPointBonus else None,
-            
-            # Effective Rates
-            "effectiveRate": float(effective_rate),
-            "effectiveDiligenceBonus": float(effective_diligence),
-            "effectiveSevenDayBonus": float(effective_seven_day),
-            "effectivePointBonus": float(effective_point),
-            
-            # Control & Metadata
-            "useDefaultRate": rate.useDefaultRate,
-            "remarks": rate.remarks,
-            "isActive": rate.isActive,
-            "createdAt": rate.createdAt,
-            "updatedAt": rate.updatedAt
-        })
-    
-    return rates  # type: ignore
-
-
-@router.get("/site-service-rates/site/{site_id}")
-async def get_site_service_rates_by_site(
-    site_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """ดึงอัตราค่าจ้างของหน่วยงานเฉพาะ"""
-    result = await db.execute(
-        select(SiteServiceRate, Service)
-        .join(Service, SiteServiceRate.serviceId == Service.id)
-        .where(SiteServiceRate.siteId == site_id)
-        .order_by(Service.serviceName)
-    )
-    
-    rates = []
-    for rate, service in result:
-        effective_rate = rate.customRate if (not rate.useDefaultRate and rate.customRate is not None) else service.hiringRate
-        effective_diligence = rate.customDiligenceBonus if (not rate.useDefaultRate and rate.customDiligenceBonus is not None) else service.diligenceBonus
-        effective_seven_day = rate.customSevenDayBonus if (not rate.useDefaultRate and rate.customSevenDayBonus is not None) else service.sevenDayBonus
-        effective_point = rate.customPointBonus if (not rate.useDefaultRate and rate.customPointBonus is not None) else service.pointBonus
-        
-        rates.append({
-            "id": rate.id,
-            "siteId": rate.siteId,
-            "serviceId": rate.serviceId,
-            "serviceName": service.serviceName,
-            "serviceCode": service.serviceCode,
-            "defaultRate": float(service.hiringRate),
-            "customRate": float(rate.customRate) if rate.customRate else None,
-            "effectiveRate": float(effective_rate),
-            "effectiveDiligenceBonus": float(effective_diligence),
-            "effectiveSevenDayBonus": float(effective_seven_day),
-            "effectivePointBonus": float(effective_point),
-            "useDefaultRate": rate.useDefaultRate,
-            "remarks": rate.remarks,
-            "isActive": rate.isActive
-        })
-    
-    return rates
-
-
-@router.post("/site-service-rates", status_code=201)
-async def create_site_service_rate(
-    rate_data: SiteServiceRateCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """สร้างอัตราค่าจ้างเฉพาะหน่วยงาน"""
-    
-    # ตรวจสอบว่า site และ service มีอยู่จริง
-    site_result = await db.execute(select(Site).where(Site.id == rate_data.siteId))
-    if not site_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Site not found")
-    
-    service_result = await db.execute(select(Service).where(Service.id == rate_data.serviceId))
-    if not service_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Service not found")
-    
-    # ตรวจสอบว่ามีข้อมูลซ้ำหรือไม่
-    existing = await db.execute(
-        select(SiteServiceRate)
-        .where(
-            SiteServiceRate.siteId == rate_data.siteId,
-            SiteServiceRate.serviceId == rate_data.serviceId
-        )
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=400, 
-            detail="Site-Service rate already exists. Use PUT to update."
-        )
-    
-    # สร้าง record ใหม่
-    new_rate = SiteServiceRate(
-        siteId=rate_data.siteId,
-        serviceId=rate_data.serviceId,
-        customRate=rate_data.customRate,
-        customDiligenceBonus=rate_data.customDiligenceBonus,
-        customSevenDayBonus=rate_data.customSevenDayBonus,
-        customPointBonus=rate_data.customPointBonus,
-        useDefaultRate=rate_data.useDefaultRate,
-        remarks=rate_data.remarks,
-        isActive=rate_data.isActive
-    )
-    
-    db.add(new_rate)
-    await db.commit()
-    await db.refresh(new_rate)
-    
-    return {
-        "id": new_rate.id,
-        "siteId": new_rate.siteId,
-        "serviceId": new_rate.serviceId,
-        "message": "Site service rate created successfully"
-    }
-
-
-@router.put("/site-service-rates/{rate_id}")
-async def update_site_service_rate(
-    rate_id: int,
-    rate_data: SiteServiceRateUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """อัปเดตอัตราค่าจ้างเฉพาะหน่วยงาน"""
-    
-    result = await db.execute(
-        select(SiteServiceRate).where(SiteServiceRate.id == rate_id)
-    )
-    rate = result.scalar_one_or_none()
-    
-    if not rate:
-        raise HTTPException(status_code=404, detail="Site service rate not found")
-    
-    # อัปเดตเฉพาะฟิลด์ที่ส่งมา
-    if rate_data.customRate is not None:
-        rate.customRate = rate_data.customRate  # type: ignore[assignment]
-    if rate_data.customDiligenceBonus is not None:
-        rate.customDiligenceBonus = rate_data.customDiligenceBonus  # type: ignore[assignment]
-    if rate_data.customSevenDayBonus is not None:
-        rate.customSevenDayBonus = rate_data.customSevenDayBonus  # type: ignore[assignment]
-    if rate_data.customPointBonus is not None:
-        rate.customPointBonus = rate_data.customPointBonus  # type: ignore[assignment]
-    if rate_data.useDefaultRate is not None:
-        rate.useDefaultRate = rate_data.useDefaultRate  # type: ignore[assignment]
-    if rate_data.remarks is not None:
-        rate.remarks = rate_data.remarks  # type: ignore[assignment]
-    if rate_data.isActive is not None:
-        rate.isActive = rate_data.isActive  # type: ignore[assignment]
-    
-    await db.commit()
-    await db.refresh(rate)
-    
-    return {
-        "id": rate.id,
-        "message": "Site service rate updated successfully"
-    }
-
-
-@router.delete("/site-service-rates/{rate_id}")
-async def delete_site_service_rate(
-    rate_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """ลบอัตราค่าจ้างเฉพาะหน่วยงาน"""
-    
-    result = await db.execute(
-        select(SiteServiceRate).where(SiteServiceRate.id == rate_id)
-    )
-    rate = result.scalar_one_or_none()
-    
-    if not rate:
-        raise HTTPException(status_code=404, detail="Site service rate not found")
-    
-    await db.delete(rate)
-    await db.commit()
-    
-    return {"message": "Site service rate deleted successfully"}

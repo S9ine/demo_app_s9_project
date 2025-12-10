@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, date
 import re
 
 
@@ -242,10 +242,27 @@ class GuardCreate(BaseModel):
     guardId: str = Field(..., min_length=1, description="รหัสพนักงาน (ไม่อนุญาตให้มีช่องว่าง)")
     firstName: str = Field(..., min_length=1)
     lastName: str = Field(..., min_length=1)
+    idCardNumber: Optional[str] = Field(None, description="เลขบัตรประชาชน")
     phone: Optional[str] = None
     address: Optional[str] = None
+    
+    # ข้อมูลตำแหน่งและแผนก
+    position: Optional[str] = Field(None, description="ตำแหน่งงาน")
+    department: Optional[str] = Field(None, description="แผนก")
+    
+    # ข้อมูลกวันที่
+    startDate: Optional[date] = Field(None, description="วันเริ่มงาน")
+    birthDate: Optional[date] = Field(None, description="วันเกิด")
+    
+    # ข้อมูลเงินเดือน
+    salary: Optional[Decimal] = Field(None, description="เงินเดือน")
+    salaryType: Optional[str] = Field(None, description="ประเภท: รายเดือน, รายวัน, รายชั่วโมง")
+    
+    # ข้อมูลการรับเงิน
+    paymentMethod: Optional[str] = Field(None, description="วิธีรับเงิน: โอนเข้าบัญชี, เงินสด, เช็ค")
     bankAccountNo: Optional[str] = None
     bankCode: Optional[str] = None
+    
     isActive: bool = True
 
     @field_validator('guardId')
@@ -263,10 +280,27 @@ class GuardUpdate(BaseModel):
     guardId: Optional[str] = None
     firstName: Optional[str] = None
     lastName: Optional[str] = None
+    idCardNumber: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    
+    # ข้อมูลตำแหน่งและแผนก
+    position: Optional[str] = None
+    department: Optional[str] = None
+    
+    # ข้อมูลวันที่
+    startDate: Optional[date] = None
+    birthDate: Optional[date] = None
+    
+    # ข้อมูลเงินเดือน
+    salary: Optional[Decimal] = None
+    salaryType: Optional[str] = None
+    
+    # ข้อมูลการรับเงิน
+    paymentMethod: Optional[str] = None
     bankAccountNo: Optional[str] = None
     bankCode: Optional[str] = None
+    
     isActive: Optional[bool] = None
 
     @field_validator('guardId')
@@ -287,10 +321,27 @@ class GuardResponse(BaseModel):
     guardId: str
     firstName: str
     lastName: str
+    idCardNumber: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    
+    # ข้อมูลตำแหน่งและแผนก
+    position: Optional[str] = None
+    department: Optional[str] = None
+    
+    # ข้อมูลวันที่
+    startDate: Optional[date] = None
+    birthDate: Optional[date] = None
+    
+    # ข้อมูลเงินเดือน
+    salary: Optional[Decimal] = None
+    salaryType: Optional[str] = None
+    
+    # ข้อมูลการรับเงิน
+    paymentMethod: Optional[str] = None
     bankAccountNo: Optional[str] = None
     bankCode: Optional[str] = None
+    
     isActive: bool
     createdAt: Optional[datetime] = None
 
@@ -449,75 +500,3 @@ class ServiceResponse(BaseModel):
     pointBonus: float
     isActive: bool
     createdAt: Optional[datetime] = None
-
-
-# ========== SITE SERVICE RATE SCHEMAS ==========
-
-class SiteServiceRateCreate(BaseModel):
-    """สร้างอัตราค่าจ้างเฉพาะหน่วยงาน"""
-    siteId: int = Field(..., description="ID ของหน่วยงาน")
-    serviceId: int = Field(..., description="ID ของบริการ/ตำแหน่ง")
-    
-    # Custom Rates (ถ้าไม่กำหนดจะใช้ค่าจาก services table)
-    customRate: Optional[float] = Field(None, description="อัตราค่าจ้างต่อวัน (บาท)", ge=0)
-    customDiligenceBonus: Optional[float] = Field(None, description="เบี้ยขยัน", ge=0)
-    customSevenDayBonus: Optional[float] = Field(None, description="โบนัส 7 วัน", ge=0)
-    customPointBonus: Optional[float] = Field(None, description="โบนัสแต้ม", ge=0)
-    
-    # Control
-    useDefaultRate: bool = Field(False, description="ใช้อัตราเริ่มต้นจาก services table")
-    
-    # Additional
-    remarks: Optional[str] = Field(None, description="หมายเหตุ")
-    isActive: bool = True
-
-
-class SiteServiceRateUpdate(BaseModel):
-    """อัปเดตอัตราค่าจ้างเฉพาะหน่วยงาน"""
-    customRate: Optional[float] = Field(None, ge=0)
-    customDiligenceBonus: Optional[float] = Field(None, ge=0)
-    customSevenDayBonus: Optional[float] = Field(None, ge=0)
-    customPointBonus: Optional[float] = Field(None, ge=0)
-    useDefaultRate: Optional[bool] = None
-    remarks: Optional[str] = None
-    isActive: Optional[bool] = None
-
-
-class SiteServiceRateResponse(BaseModel):
-    """Response ที่รวมข้อมูลจาก site, service, และ custom rate"""
-    id: int
-    siteId: int
-    serviceId: int
-    
-    # Site Info
-    siteName: Optional[str] = None
-    siteCode: Optional[str] = None
-    
-    # Service Info
-    serviceName: Optional[str] = None
-    serviceCode: Optional[str] = None
-    
-    # Default Rates (จาก services table)
-    defaultRate: Optional[float] = None
-    defaultDiligenceBonus: Optional[float] = None
-    defaultSevenDayBonus: Optional[float] = None
-    defaultPointBonus: Optional[float] = None
-    
-    # Custom Rates (อัตราเฉพาะหน่วยงาน)
-    customRate: Optional[float] = None
-    customDiligenceBonus: Optional[float] = None
-    customSevenDayBonus: Optional[float] = None
-    customPointBonus: Optional[float] = None
-    
-    # Effective Rates (อัตราจริงที่ใช้งาน)
-    effectiveRate: float
-    effectiveDiligenceBonus: float
-    effectiveSevenDayBonus: float
-    effectivePointBonus: float
-    
-    # Control & Metadata
-    useDefaultRate: bool
-    remarks: Optional[str] = None
-    isActive: bool
-    createdAt: Optional[datetime] = None
-    updatedAt: Optional[datetime] = None

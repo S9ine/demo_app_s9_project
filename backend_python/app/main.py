@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 from app.database import init_db, close_db
-from app.api import auth, users, master_data, daily_advances
+from app.api import auth, users, master_data, daily_advances, schedules
 import logging
 
 logger = logging.getLogger(__name__)
@@ -48,7 +48,8 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users & Roles"])
 app.include_router(master_data.router, prefix="/api", tags=["Master Data"])
-app.include_router(daily_advances.router, prefix="/api", tags=["Financial"])
+app.include_router(schedules.router, prefix="/api", tags=["Schedules"])
+app.include_router(daily_advances.router, prefix="/api", tags=["Daily Advances"])
 
 
 # Custom exception handler for validation errors

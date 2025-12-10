@@ -5,9 +5,11 @@ import StaffFormModal from '../modals/StaffFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
+import { useBanks } from '../../hooks/useBanks';
 
 export default function StaffList() {
     const [staff, setStaff] = useState([]);
+    const { banks } = useBanks();
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [staffToDelete, setStaffToDelete] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,12 +23,15 @@ export default function StaffList() {
         setIsLoading(true);
         try {
             const response = await api.get('/staff');
+            
             setStaff(response.data.map(s => ({
                 ...s,
                 staffId: s.guardId, // Backend ใช้ฟิลด์ guardId แทน staffId ในบางโมเดล (Reuse logic)
-                position: 'พนักงานทั่วไป', // Mock data
+                position: s.position || '',
+                department: s.department || '',
                 title: 'นาย', // Mock data
-                status: s.isActive ? 'Active' : 'Resigned'
+                status: s.isActive ? 'Active' : 'Resigned',
+                bankName: banks.find(b => b.code === s.bankCode)?.name || s.bankCode || ''
             })));
         } catch (error) {
             console.error('Error fetching staff:', error);
@@ -36,8 +41,10 @@ export default function StaffList() {
     };
 
     useEffect(() => {
-        fetchStaff();
-    }, []);
+        if (banks.length > 0) {
+            fetchStaff();
+        }
+    }, [banks]);
 
     const handleOpenModal = (staffMember = null) => {
         setSelectedStaff(staffMember);
@@ -53,11 +60,27 @@ export default function StaffList() {
         try {
             const payload = {
                 guardId: staffData.staffId,
-                name: staffData.name,
+                firstName: staffData.firstName,
+                lastName: staffData.lastName,
+                idCardNumber: staffData.idCardNumber || null,
                 phone: staffData.phone,
                 address: staffData.address,
+                position: staffData.position || null,
+                department: staffData.department || null,
+                
+                // ข้อมูลวันที่
+                startDate: staffData.startDate || null,
+                birthDate: staffData.birthDate || null,
+                
+                // ข้อมูลเงินเดือน
+                salary: staffData.salary ? parseFloat(staffData.salary) : null,
+                salaryType: staffData.salaryType || null,
+                
+                // ข้อมูลการรับเงิน
+                paymentMethod: staffData.paymentMethod || null,
                 bankAccountNo: staffData.bankAccountNo || "",
                 bankCode: staffData.bankCode || "",
+                
                 isActive: staffData.status === 'Active',
             };
 
@@ -120,7 +143,7 @@ export default function StaffList() {
                             {paginatedStaff.map(s => (
                                 <tr key={s.id} className="hover:bg-gray-50 border-b">
                                     <td className="p-3">{s.staffId}</td>
-                                    <td className="p-3">{s.title}{s.name}</td>
+                                    <td className="p-3">{s.title}{s.firstName} {s.lastName}</td>
                                     <td className="p-3">{s.position}</td>
                                     <td className="p-3">{s.phone}</td>
                                     <td className="p-3">
@@ -155,13 +178,14 @@ export default function StaffList() {
                 onClose={handleCloseModal}
                 onSave={handleSaveStaff}
                 staffMember={selectedStaff}
+                banks={banks}
             />
             <ConfirmationModal
                 isOpen={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
                 onConfirm={handleDelete}
                 title="ยืนยันการลบพนักงาน"
-                message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลของ "${staffToDelete?.name}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+                message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลของ "${staffToDelete?.firstName} ${staffToDelete?.lastName}"? การกระทำนี้ไม่สามารถย้อนกลับได้`}
             />
         </div>
     );

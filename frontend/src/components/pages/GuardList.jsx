@@ -5,10 +5,11 @@ import GuardFormModal from '../modals/GuardFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
+import { useBanks } from '../../hooks/useBanks';
 
 export default function GuardList() {
     const [guards, setGuards] = useState([]);
-    const [banks, setBanks] = useState([]);
+    const { banks } = useBanks();
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [guardToDelete, setGuardToDelete] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -18,22 +19,18 @@ export default function GuardList() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
-    const fetchGuardsAndBanks = async () => {
+    const fetchGuards = async () => {
         setIsLoading(true);
         try {
-            const [guardsRes, banksRes] = await Promise.all([
-                api.get('/guards'),
-                api.get('/banks')
-            ]);
+            const response = await api.get('/guards');
 
-            setBanks(banksRes.data);
             // แปลงข้อมูลจาก Backend ให้ตรงกับที่ Modal ต้องการ
-            setGuards(guardsRes.data.map(g => ({
+            setGuards(response.data.map(g => ({
                 ...g,
                 status: g.isActive ? 'Active' : 'Inactive',
                 paymentInfo: {
                     accountNumber: g.bankAccountNo,
-                    bankName: banksRes.data.find(b => b.code === g.bankCode)?.name || g.bankCode || '',
+                    bankName: banks.find(b => b.code === g.bankCode)?.name || g.bankCode || '',
                     accountName: '',
                 }
             })));
@@ -45,8 +42,10 @@ export default function GuardList() {
     };
 
     useEffect(() => {
-        fetchGuardsAndBanks();
-    }, []);
+        if (banks.length > 0) {
+            fetchGuards();
+        }
+    }, [banks]);
 
     const handleOpenModal = (guard = null) => {
         setSelectedGuard(guard);
@@ -76,7 +75,7 @@ export default function GuardList() {
             } else {
                 await api.post('/guards', payload);
             }
-            fetchGuardsAndBanks();
+            fetchGuards();
             handleCloseModal();
         } catch (error) {
             alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
@@ -92,7 +91,7 @@ export default function GuardList() {
         if (guardToDelete) {
             try {
                 await api.delete(`/guards/${guardToDelete.id}`);
-                fetchGuardsAndBanks();
+                fetchGuards();
                 setIsConfirmOpen(false);
                 setGuardToDelete(null);
             } catch (error) {

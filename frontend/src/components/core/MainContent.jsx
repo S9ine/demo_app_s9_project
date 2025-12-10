@@ -9,7 +9,6 @@ import SettingsPage from '../pages/SettingsPage';
 import StaffList from '../pages/StaffList';
 import DailyAdvancePage from '../pages/DailyAdvancePage';
 import ProductList from '../pages/ProductList';
-import SiteServiceRates from '../pages/SiteServiceRates';
 
 //vvvv <-- 1. รับ user prop เข้ามาตรงนี้
 
@@ -29,7 +28,6 @@ export default function MainContent({ activePage, user }) {
             case 'staff-list': return <StaffList user={user} />;
             case 'services': return <ServiceList user={user} />;
             case 'product': return <ProductList user={user} />;
-            case 'site-service-rates': return <SiteServiceRates user={user} />;
             case 'scheduler': return <Scheduler user={user} />;
             case 'settings': return <SettingsPage user={user} />;
 
