@@ -6,17 +6,18 @@ import GuardList from '../pages/GuardList';
 import ServiceList from '../pages/ServiceList';
 import Scheduler from '../pages/Scheduler';
 import SettingsPage from '../pages/SettingsPage';
+import MasterDataPage from '../pages/MasterDataPage';
 import StaffList from '../pages/StaffList';
 import DailyAdvancePage from '../pages/DailyAdvancePage';
 import ProductList from '../pages/ProductList';
 
 //vvvv <-- 1. รับ user prop เข้ามาตรงนี้
 
-export default function MainContent({ activePage, user }) {
+export default function MainContent({ activePage, setActivePage, user }) {
     const renderPage = () => {
         switch (activePage) {
             // (แนะนำ) ส่ง user ไปให้หน้าอื่นๆ ด้วย เผื่อต้องใช้ในอนาคต
-            case 'dashboard': return <Dashboard user={user} />;
+            case 'dashboard': return <Dashboard user={user} setActivePage={setActivePage} />;
             case 'customer-list': return <CustomerList user={user} />;
             case 'site-list': return <SiteList user={user} />;
 
@@ -29,6 +30,7 @@ export default function MainContent({ activePage, user }) {
             case 'services': return <ServiceList user={user} />;
             case 'product': return <ProductList user={user} />;
             case 'scheduler': return <Scheduler user={user} />;
+            case 'master-data': return <MasterDataPage user={user} />;
             case 'settings': return <SettingsPage user={user} />;
 
             default: return <div className="p-6"><h1 className="text-2xl font-semibold">{activePage}</h1><p>เนื้อหาของหน้านี้ยังไม่ถูกสร้าง</p></div>;

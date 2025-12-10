@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     ChevronDown, Home, Users, Briefcase, UserCheck, FileText, Calendar, Settings, X, Menu, Search,
     Building2, MapPin, Shield, UsersRound, Receipt, Package, Wrench, DollarSign,
-    ShoppingBag, HeartHandshake, LayoutGrid
+    ShoppingBag, HeartHandshake, LayoutGrid, Database
 } from 'lucide-react';
 
 export default function Sidebar({ setActivePage, activePage, userPermissions, userRole }) {
@@ -71,13 +71,19 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
         },
         { id: 'social-security', icon: UserCheck, label: 'ประกันสังคม', color: 'from-cyan-500 to-cyan-600' },
         { id: 'scheduler', icon: Calendar, label: 'ตารางงาน', color: 'from-violet-500 to-violet-600' },
-        { id: 'settings', icon: Settings, label: 'ตั้งค่าระบบ', color: 'from-gray-500 to-gray-600' },
+        { id: 'master-data', icon: Database, label: 'ข้อมูลหลัก', color: 'from-slate-500 to-slate-600', adminOnly: true },
+        { id: 'settings', icon: Settings, label: 'ตั้งค่าผู้ใช้', color: 'from-gray-500 to-gray-600', adminOnly: true },
     ];
 
     const visibleMenuItems = menuItems.map(item => {
         // Admin sees everything
         if (userRole === 'Admin') {
             return item;
+        }
+
+        // ซ่อนเมนูที่เป็น adminOnly สำหรับ role อื่น
+        if (item.adminOnly) {
+            return null;
         }
 
         if (!item.subItems) {

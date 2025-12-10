@@ -36,7 +36,7 @@ function AppContent() {
             <Sidebar setActivePage={setActivePage} activePage={activePage} userPermissions={user.permissions} userRole={user.role} />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header user={user} handleLogout={handleLogout} />
-                <MainContent activePage={activePage} user={user} />
+                <MainContent activePage={activePage} setActivePage={setActivePage} user={user} />
             </div>
         </div>
     );
