@@ -60,7 +60,8 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                         ? site.employmentDetails.map(detail => ({
                             ...detail,
                             positionAllowance: detail.positionAllowance || 0,
-                            otherAllowance: detail.otherAllowance || 0
+                            otherAllowance: detail.otherAllowance || 0,
+                            dailyIncome: detail.dailyIncome || 0
                         }))
                         : []
                 };
@@ -521,7 +522,7 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                             </button>
                                         </div>
                                         
-                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3">
                                             <div>
                                                 <label className="block text-xs font-medium text-gray-600 mb-1">จำนวน</label>
                                                 <input
@@ -530,6 +531,18 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                                     onChange={(e) => handleEmploymentChange(index, 'quantity', parseInt(e.target.value) || 0)}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                     min="0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">รายได้/วัน (฿)</label>
+                                                <input
+                                                    type="number"
+                                                    value={detail.dailyIncome || 0}
+                                                    onChange={(e) => handleEmploymentChange(index, 'dailyIncome', parseFloat(e.target.value) || 0)}
+                                                    className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold text-blue-700"
+                                                    min="0"
+                                                    step="0.01"
+                                                    placeholder="รายได้"
                                                 />
                                             </div>
                                             <div>
@@ -606,6 +619,22 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                             </div>
                                         </div>
                                         
+                                        {/* แสดงกำไรต่อคนต่อวัน */}
+                                        {detail.dailyIncome > 0 && (
+                                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                                <div className="flex justify-between items-center text-sm">
+                                                    <span className="text-gray-600">กำไร/คน/วัน:</span>
+                                                    <span className={`font-bold ${
+                                                        (detail.dailyIncome - ((detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0))) >= 0 
+                                                            ? 'text-green-600' 
+                                                            : 'text-red-600'
+                                                    }`}>
+                                                        ฿{((detail.dailyIncome || 0) - ((detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0))).toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        
                                         <div className="mt-3">
                                             <label className="block text-xs font-medium text-gray-600 mb-1">หมายเหตุ</label>
                                             <textarea
@@ -637,15 +666,41 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                                     {formData.employmentDetails.reduce((sum, detail) => sum + (detail.quantity || 0), 0)} คน
                                                 </p>
                                             </div>
+                                            <div className="bg-white rounded-lg px-4 py-2 shadow-sm">
+                                                <span className="text-sm text-blue-600">รายได้รวม/วัน</span>
+                                                <p className="text-2xl font-bold text-blue-700">
+                                                    ฿{formData.employmentDetails.reduce((sum, detail) => {
+                                                        return sum + ((detail.quantity || 0) * (detail.dailyIncome || 0));
+                                                    }, 0).toLocaleString()}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="text-sm text-gray-600 block mb-1">รวมทั้งหมด</span>
-                                            <p className="text-3xl font-bold text-green-700">
-                                                ฿{formData.employmentDetails.reduce((sum, detail) => {
-                                                    const totalPerPerson = (detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0);
-                                                    return sum + ((detail.quantity || 0) * totalPerPerson);
-                                                }, 0).toLocaleString()}
-                                            </p>
+                                        <div className="text-right space-y-2">
+                                            <div>
+                                                <span className="text-sm text-gray-600 block mb-1">ต้นทุนรวม/วัน</span>
+                                                <p className="text-3xl font-bold text-green-700">
+                                                    ฿{formData.employmentDetails.reduce((sum, detail) => {
+                                                        const totalPerPerson = (detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0);
+                                                        return sum + ((detail.quantity || 0) * totalPerPerson);
+                                                    }, 0).toLocaleString()}
+                                                </p>
+                                            </div>
+                                            <div className="pt-2 border-t-2 border-green-300">
+                                                <span className="text-sm text-gray-600 block mb-1">กำไรรวม/วัน</span>
+                                                <p className={`text-2xl font-bold ${
+                                                    (formData.employmentDetails.reduce((sum, detail) => sum + ((detail.quantity || 0) * (detail.dailyIncome || 0)), 0) -
+                                                    formData.employmentDetails.reduce((sum, detail) => {
+                                                        const totalPerPerson = (detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0);
+                                                        return sum + ((detail.quantity || 0) * totalPerPerson);
+                                                    }, 0)) >= 0 ? 'text-green-600' : 'text-red-600'
+                                                }`}>
+                                                    ฿{(formData.employmentDetails.reduce((sum, detail) => sum + ((detail.quantity || 0) * (detail.dailyIncome || 0)), 0) -
+                                                    formData.employmentDetails.reduce((sum, detail) => {
+                                                        const totalPerPerson = (detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0);
+                                                        return sum + ((detail.quantity || 0) * totalPerPerson);
+                                                    }, 0)).toLocaleString()}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

@@ -12,6 +12,7 @@ from app.models.daily_advance import DailyAdvance
 # เพิ่ม 2 บรรทัดนี้
 from app.models.product import Product
 from app.models.service import Service
+from app.models.site_service_rate import SiteServiceRate
 
 __all__ = [
     "User",
@@ -23,5 +24,6 @@ __all__ = [
     "Bank",
     "DailyAdvance",
     "Product", # เพิ่ม
-    "Service"  # เพิ่ม
+    "Service",  # เพิ่ม
+    "SiteServiceRate"
 ]

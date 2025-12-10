@@ -33,6 +33,7 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
             id: 'services', icon: FileText, label: 'สินค้าและบริการ', subItems: [
                 { id: 'services', label: 'บริการ' },
                 { id: 'product', label: 'สินค้า' },
+                { id: 'site-service-rates', label: 'อัตราค่าจ้างตามหน่วยงาน' },
             ]
         },
         { id: 'social-security', icon: UserCheck, label: 'ประกันสังคม' },

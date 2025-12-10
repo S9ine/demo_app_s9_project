@@ -120,6 +120,7 @@ class EmploymentDetail(BaseModel):
     """ข้อมูลการจ้าง"""
     position: str = Field(..., description="ชื่อ/ตำแหน่ง")
     quantity: int = Field(..., description="จำนวน", ge=0)
+    dailyIncome: float = Field(0.0, description="รายได้รายวัน (บาท/วัน)", ge=0)
     hiringRate: float = Field(..., description="ราคาจ้าง", ge=0)
     positionAllowance: float = Field(0.0, description="ค่าตำแหน่ง", ge=0)
     diligenceBonus: float = Field(0.0, description="เบี้ยขยัน", ge=0)
@@ -448,3 +449,75 @@ class ServiceResponse(BaseModel):
     pointBonus: float
     isActive: bool
     createdAt: Optional[datetime] = None
+
+
+# ========== SITE SERVICE RATE SCHEMAS ==========
+
+class SiteServiceRateCreate(BaseModel):
+    """สร้างอัตราค่าจ้างเฉพาะหน่วยงาน"""
+    siteId: int = Field(..., description="ID ของหน่วยงาน")
+    serviceId: int = Field(..., description="ID ของบริการ/ตำแหน่ง")
+    
+    # Custom Rates (ถ้าไม่กำหนดจะใช้ค่าจาก services table)
+    customRate: Optional[float] = Field(None, description="อัตราค่าจ้างต่อวัน (บาท)", ge=0)
+    customDiligenceBonus: Optional[float] = Field(None, description="เบี้ยขยัน", ge=0)
+    customSevenDayBonus: Optional[float] = Field(None, description="โบนัส 7 วัน", ge=0)
+    customPointBonus: Optional[float] = Field(None, description="โบนัสแต้ม", ge=0)
+    
+    # Control
+    useDefaultRate: bool = Field(False, description="ใช้อัตราเริ่มต้นจาก services table")
+    
+    # Additional
+    remarks: Optional[str] = Field(None, description="หมายเหตุ")
+    isActive: bool = True
+
+
+class SiteServiceRateUpdate(BaseModel):
+    """อัปเดตอัตราค่าจ้างเฉพาะหน่วยงาน"""
+    customRate: Optional[float] = Field(None, ge=0)
+    customDiligenceBonus: Optional[float] = Field(None, ge=0)
+    customSevenDayBonus: Optional[float] = Field(None, ge=0)
+    customPointBonus: Optional[float] = Field(None, ge=0)
+    useDefaultRate: Optional[bool] = None
+    remarks: Optional[str] = None
+    isActive: Optional[bool] = None
+
+
+class SiteServiceRateResponse(BaseModel):
+    """Response ที่รวมข้อมูลจาก site, service, และ custom rate"""
+    id: int
+    siteId: int
+    serviceId: int
+    
+    # Site Info
+    siteName: Optional[str] = None
+    siteCode: Optional[str] = None
+    
+    # Service Info
+    serviceName: Optional[str] = None
+    serviceCode: Optional[str] = None
+    
+    # Default Rates (จาก services table)
+    defaultRate: Optional[float] = None
+    defaultDiligenceBonus: Optional[float] = None
+    defaultSevenDayBonus: Optional[float] = None
+    defaultPointBonus: Optional[float] = None
+    
+    # Custom Rates (อัตราเฉพาะหน่วยงาน)
+    customRate: Optional[float] = None
+    customDiligenceBonus: Optional[float] = None
+    customSevenDayBonus: Optional[float] = None
+    customPointBonus: Optional[float] = None
+    
+    # Effective Rates (อัตราจริงที่ใช้งาน)
+    effectiveRate: float
+    effectiveDiligenceBonus: float
+    effectiveSevenDayBonus: float
+    effectivePointBonus: float
+    
+    # Control & Metadata
+    useDefaultRate: bool
+    remarks: Optional[str] = None
+    isActive: bool
+    createdAt: Optional[datetime] = None
+    updatedAt: Optional[datetime] = None
