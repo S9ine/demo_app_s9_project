@@ -4,7 +4,8 @@ import api from '../../config/api';
 import GuardFormModal from '../modals/GuardFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import GenericExcelImportModal from '../modals/GenericExcelImportModal';
-import { PlusCircle, Edit, Trash2, Download, Search, X, Upload } from 'lucide-react';
+import EntityHistoryModal from '../modals/EntityHistoryModal';
+import { PlusCircle, Edit, Trash2, Download, Search, X, Upload, History } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 import { useBanks } from '../../hooks/useBanks';
 import * as XLSX from 'xlsx';
@@ -18,6 +19,10 @@ export default function GuardList() {
     const [selectedGuard, setSelectedGuard] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    // History Modal States
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [selectedGuardForHistory, setSelectedGuardForHistory] = useState(null);
 
     // Selection States
     const [selectedIds, setSelectedIds] = useState([]);
@@ -37,12 +42,45 @@ export default function GuardList() {
             // แปลงข้อมูลจาก Backend ให้ตรงกับที่ Modal ต้องการ
             setGuards(response.data.map(g => ({
                 ...g,
+                // Map all 24 fields from API
+                id: g.id,
+                guardId: g.guardId,
+                // Personal Information
+                title: g.title || '',
+                firstName: g.firstName || '',
+                lastName: g.lastName || '',
+                birthDate: g.birthDate || '',
+                nationality: g.nationality || '',
+                religion: g.religion || '',
+                idCardNumber: g.idCardNumber || '',
+                // Addresses
+                addressIdCard: g.addressIdCard || '',
+                addressCurrent: g.addressCurrent || '',
+                phone: g.phone || '',
+                // Education & License
+                education: g.education || '',
+                licenseNumber: g.licenseNumber || '',
+                licenseExpiry: g.licenseExpiry || '',
+                // Employment
+                startDate: g.startDate || '',
                 status: g.isActive ? 'Active' : 'Inactive',
-                paymentInfo: {
-                    accountNumber: g.bankAccountNo,
-                    bankName: banks.find(b => b.code === g.bankCode)?.name || g.bankCode || '',
-                    accountName: '',
-                }
+                // Banking
+                bankAccountName: g.bankAccountName || '',
+                bankAccountNo: g.bankAccountNo || '',
+                bankName: banks.find(b => b.code === g.bankCode)?.name || '',
+                bankCode: g.bankCode || '',
+                // Family Status
+                maritalStatus: g.maritalStatus || '',
+                spouseName: g.spouseName || '',
+                // Emergency Contact
+                emergencyContactName: g.emergencyContactName || '',
+                emergencyContactPhone: g.emergencyContactPhone || '',
+                emergencyContactRelation: g.emergencyContactRelation || '',
+                // Legacy fields (for backward compatibility)
+                address: g.address || '',
+                position: g.position || '',
+                department: g.department || '',
+                createdAt: g.createdAt
             })));
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -70,19 +108,37 @@ export default function GuardList() {
     const handleSaveGuard = async (guardData) => {
         try {
             const payload = {
-                guardId: guardData.guardId,
+                title: guardData.title || null,
                 firstName: guardData.firstName,
                 lastName: guardData.lastName,
-                phone: guardData.phone,
-                address: guardData.address,
-                bankAccountNo: guardData.paymentInfo?.accountNumber || "",
-                bankCode: banks.find(b => b.name === guardData.paymentInfo?.bankName)?.code || guardData.paymentInfo?.bankCode || "",
+                birthDate: guardData.birthDate || null,
+                nationality: guardData.nationality || null,
+                religion: guardData.religion || null,
+                addressIdCard: guardData.addressIdCard || null,
+                addressCurrent: guardData.addressCurrent || null,
+                phone: guardData.phone || null,
+                education: guardData.education || null,
+                licenseNumber: guardData.licenseNumber || null,
+                licenseExpiry: guardData.licenseExpiry || null,
+                startDate: guardData.startDate || null,
+                bankAccountName: guardData.bankAccountName || null,
+                bankAccountNo: guardData.bankAccountNo || null,
+                bankCode: banks.find(b => b.name === guardData.bankName)?.code || null,
+                idCardNumber: guardData.idCardNumber || null,
+                maritalStatus: guardData.maritalStatus || null,
+                spouseName: guardData.spouseName || null,
+                emergencyContactName: guardData.emergencyContactName || null,
+                emergencyContactPhone: guardData.emergencyContactPhone || null,
+                emergencyContactRelation: guardData.emergencyContactRelation || null,
                 isActive: guardData.status === 'Active'
             };
 
             if (guardData.id) {
+                // Update - send guardId for reference but backend won't change it
+                payload.guardId = guardData.guardId;
                 await api.put(`/guards/${guardData.id}`, payload);
             } else {
+                // Create - backend will auto-generate guardId
                 await api.post('/guards', payload);
             }
             fetchGuards();
@@ -167,13 +223,29 @@ export default function GuardList() {
 
         const exportData = dataToExport.map(g => ({
             'รหัสพนักงาน': g.guardId,
+            'คำนำหน้า': g.title || '-',
             'ชื่อ': g.firstName,
             'นามสกุล': g.lastName,
+            'วันเกิด': g.birthDate || '-',
+            'สัญชาติ': g.nationality || '-',
+            'ศาสนา': g.religion || '-',
+            'เลขบัตรประชาชน': g.idCardNumber || '-',
+            'ที่อยู่ตามบัตร': g.addressIdCard || '-',
+            'ที่อยู่ปัจจุบัน': g.addressCurrent || '-',
             'เบอร์โทร': g.phone || '-',
-            'ที่อยู่': g.address || '-',
+            'การศึกษา': g.education || '-',
+            'เลขใบอนุญาต': g.licenseNumber || '-',
+            'วันหมดอายุใบอนุญาต': g.licenseExpiry || '-',
+            'วันเริ่มงาน': g.startDate || '-',
+            'ชื่อบัญชี': g.bankAccountName || '-',
             'เลขบัญชี': g.bankAccountNo || '-',
-            'ธนาคาร': banks.find(b => b.code === g.bankCode)?.name || g.bankCode || '-',
-            'สถานะ': g.isActive ? 'ทำงาน' : 'ลาออก'
+            'ธนาคาร': g.bankName || '-',
+            'สถานภาพสมรส': g.maritalStatus || '-',
+            'ชื่อคู่สมรส': g.spouseName || '-',
+            'ผู้ติดต่อฉุกเฉิน': g.emergencyContactName || '-',
+            'เบอร์ฉุกเฉิน': g.emergencyContactPhone || '-',
+            'ความสัมพันธ์': g.emergencyContactRelation || '-',
+            'สถานะ': g.status === 'Active' ? 'ทำงาน' : 'ลาออก'
         }));
 
         const ws = XLSX.utils.json_to_sheet(exportData);
@@ -311,6 +383,20 @@ export default function GuardList() {
                                         </span>
                                     </td>
                                     <td className="p-3 flex space-x-2">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedGuardForHistory({
+                                                    id: g.id,
+                                                    name: `${g.firstName} ${g.lastName}`,
+                                                    code: g.guardId
+                                                });
+                                                setIsHistoryModalOpen(true);
+                                            }}
+                                            className="text-purple-500 hover:text-purple-700"
+                                            title="ดูประวัติ"
+                                        >
+                                            <History className="w-5 h-5" />
+                                        </button>
                                         <button onClick={() => handleOpenModal(g)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
                                         <button onClick={() => openDeleteConfirm(g)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
                                     </td>
@@ -354,6 +440,17 @@ export default function GuardList() {
                 onConfirm={handleBulkDelete}
                 title="ยืนยันการลบข้อมูลหลายรายการ"
                 message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลพนักงาน รปภ. ${selectedIds.length} รายการ? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+            />
+
+            <EntityHistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => {
+                    setIsHistoryModalOpen(false);
+                    setSelectedGuardForHistory(null);
+                }}
+                entityType="guards"
+                entityId={selectedGuardForHistory?.code}
+                entityName={selectedGuardForHistory?.name}
             />
 
             <GenericExcelImportModal

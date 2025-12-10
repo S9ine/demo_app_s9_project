@@ -239,67 +239,95 @@ class SiteResponse(BaseModel):
 # ========== GUARD/STAFF SCHEMAS ==========
 
 class GuardCreate(BaseModel):
-    guardId: str = Field(..., min_length=1, description="รหัสพนักงาน (ไม่อนุญาตให้มีช่องว่าง)")
-    firstName: str = Field(..., min_length=1)
-    lastName: str = Field(..., min_length=1)
-    idCardNumber: Optional[str] = Field(None, description="เลขบัตรประชาชน")
-    phone: Optional[str] = None
-    address: Optional[str] = None
+    # ข้อมูลส่วนตัว
+    title: Optional[str] = Field(None, description="คำนำหน้า")
+    firstName: str = Field(..., min_length=1, description="ชื่อ")
+    lastName: str = Field(..., min_length=1, description="นามสกุล")
+    birthDate: Optional[date] = Field(None, description="วันเดือนปีเกิด")
+    nationality: Optional[str] = Field(None, description="สัญชาติ")
+    religion: Optional[str] = Field(None, description="ศาสนา")
     
-    # ข้อมูลตำแหน่งและแผนก
-    position: Optional[str] = Field(None, description="ตำแหน่งงาน")
-    department: Optional[str] = Field(None, description="แผนก")
+    # ที่อยู่
+    addressIdCard: Optional[str] = Field(None, description="ที่อยู่ตามบัตรประชาชน")
+    addressCurrent: Optional[str] = Field(None, description="ที่อยู่ปัจจุบันที่ติดต่อได้")
+    phone: Optional[str] = Field(None, description="เบอร์โทรศัพท์มือถือ")
     
-    # ข้อมูลกวันที่
-    startDate: Optional[date] = Field(None, description="วันเริ่มงาน")
-    birthDate: Optional[date] = Field(None, description="วันเกิด")
+    # การศึกษาและใบอนุญาต
+    education: Optional[str] = Field(None, description="วุฒิการศึกษาสูงสุด")
+    licenseNumber: Optional[str] = Field(None, description="เลขที่บัตร/ใบอนุญาต")
+    licenseExpiry: Optional[date] = Field(None, description="วันหมดอายุ")
     
-    # ข้อมูลเงินเดือน
-    salary: Optional[Decimal] = Field(None, description="เงินเดือน")
-    salaryType: Optional[str] = Field(None, description="ประเภท: รายเดือน, รายวัน, รายชั่วโมง")
+    # การทำงาน
+    startDate: Optional[date] = Field(None, description="วันที่เริ่มปฏิบัติงาน")
     
-    # ข้อมูลการรับเงิน
-    paymentMethod: Optional[str] = Field(None, description="วิธีรับเงิน: โอนเข้าบัญชี, เงินสด, เช็ค")
-    bankAccountNo: Optional[str] = None
-    bankCode: Optional[str] = None
+    # ข้อมูลธนาคาร
+    bankAccountName: Optional[str] = Field(None, description="ชื่อบัญชีธนาคาร")
+    bankAccountNo: Optional[str] = Field(None, description="เลขที่บัญชี")
+    bankCode: Optional[str] = Field(None, description="รหัสธนาคาร")
+    
+    # เลขบัตรประชาชน
+    idCardNumber: Optional[str] = Field(None, description="เลขที่บัตรประชาชน 13 หลัก")
+    
+    # สถานภาพครอบครัว
+    maritalStatus: Optional[str] = Field(None, description="สถานภาพสมรส")
+    spouseName: Optional[str] = Field(None, description="ชื่อ-นามสกุลคู่สมรส")
+    
+    # ผู้ติดต่อฉุกเฉิน
+    emergencyContactName: Optional[str] = Field(None, description="ชื่อบุคคลที่ติดต่อได้ในกรณีฉุกเฉิน")
+    emergencyContactPhone: Optional[str] = Field(None, description="เบอร์โทรศัพท์บุคคลฉุกเฉิน")
+    emergencyContactRelation: Optional[str] = Field(None, description="ความสัมพันธ์กับบุคคลฉุกเฉิน")
     
     isActive: bool = True
-
-    @field_validator('guardId')
-    @classmethod
-    def guard_id_no_spaces(cls, v: str) -> str:
-        """Validate that guard ID contains no spaces"""
-        if ' ' in v:
-            raise ValueError('รหัสพนักงานต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)')
-        if not re.match(r'^[\w\-]+$', v):
-            raise ValueError('รหัสพนักงานต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น')
-        return v
 
 
 class GuardUpdate(BaseModel):
     guardId: Optional[str] = None
+    
+    # ข้อมูลส่วนตัว
+    title: Optional[str] = None
     firstName: Optional[str] = None
     lastName: Optional[str] = None
-    idCardNumber: Optional[str] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    
-    # ข้อมูลตำแหน่งและแผนก
-    position: Optional[str] = None
-    department: Optional[str] = None
-    
-    # ข้อมูลวันที่
-    startDate: Optional[date] = None
     birthDate: Optional[date] = None
+    nationality: Optional[str] = None
+    religion: Optional[str] = None
     
-    # ข้อมูลเงินเดือน
-    salary: Optional[Decimal] = None
-    salaryType: Optional[str] = None
+    # ที่อยู่
+    addressIdCard: Optional[str] = None
+    addressCurrent: Optional[str] = None
+    phone: Optional[str] = None
     
-    # ข้อมูลการรับเงิน
-    paymentMethod: Optional[str] = None
+    # การศึกษาและใบอนุญาต
+    education: Optional[str] = None
+    licenseNumber: Optional[str] = None
+    licenseExpiry: Optional[date] = None
+    
+    # การทำงาน
+    startDate: Optional[date] = None
+    
+    # ข้อมูลธนาคาร
+    bankAccountName: Optional[str] = None
     bankAccountNo: Optional[str] = None
     bankCode: Optional[str] = None
+    
+    # เลขบัตรประชาชน
+    idCardNumber: Optional[str] = None
+    
+    # สถานภาพครอบครัว
+    maritalStatus: Optional[str] = None
+    spouseName: Optional[str] = None
+    
+    # ผู้ติดต่อฉุกเฉิน
+    emergencyContactName: Optional[str] = None
+    emergencyContactPhone: Optional[str] = None
+    emergencyContactRelation: Optional[str] = None
+    
+    # Legacy fields (for backward compatibility)
+    address: Optional[str] = None
+    position: Optional[str] = None
+    department: Optional[str] = None
+    salary: Optional[Decimal] = None
+    salaryType: Optional[str] = None
+    paymentMethod: Optional[str] = None
     
     isActive: Optional[bool] = None
 
@@ -319,28 +347,44 @@ class GuardUpdate(BaseModel):
 class GuardResponse(BaseModel):
     id: str
     guardId: str
+    
+    # ข้อมูลส่วนตัว
+    title: Optional[str] = None
     firstName: str
     lastName: str
-    idCardNumber: Optional[str] = None
-    phone: Optional[str] = None
-    address: Optional[str] = None
-    
-    # ข้อมูลตำแหน่งและแผนก
-    position: Optional[str] = None
-    department: Optional[str] = None
-    
-    # ข้อมูลวันที่
-    startDate: Optional[date] = None
     birthDate: Optional[date] = None
+    nationality: Optional[str] = None
+    religion: Optional[str] = None
     
-    # ข้อมูลเงินเดือน
-    salary: Optional[Decimal] = None
-    salaryType: Optional[str] = None
+    # ที่อยู่
+    addressIdCard: Optional[str] = None
+    addressCurrent: Optional[str] = None
+    phone: Optional[str] = None
     
-    # ข้อมูลการรับเงิน
-    paymentMethod: Optional[str] = None
+    # การศึกษาและใบอนุญาต
+    education: Optional[str] = None
+    licenseNumber: Optional[str] = None
+    licenseExpiry: Optional[date] = None
+    
+    # การทำงาน
+    startDate: Optional[date] = None
+    
+    # ข้อมูลธนาคาร
+    bankAccountName: Optional[str] = None
     bankAccountNo: Optional[str] = None
     bankCode: Optional[str] = None
+    
+    # เลขบัตรประชาชน
+    idCardNumber: Optional[str] = None
+    
+    # สถานภาพครอบครัว
+    maritalStatus: Optional[str] = None
+    spouseName: Optional[str] = None
+    
+    # ผู้ติดต่อฉุกเฉิน
+    emergencyContactName: Optional[str] = None
+    emergencyContactPhone: Optional[str] = None
+    emergencyContactRelation: Optional[str] = None
     
     isActive: bool
     createdAt: Optional[datetime] = None

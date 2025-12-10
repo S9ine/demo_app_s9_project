@@ -10,6 +10,7 @@ import MasterDataPage from '../pages/MasterDataPage';
 import StaffList from '../pages/StaffList';
 import DailyAdvancePage from '../pages/DailyAdvancePage';
 import ProductList from '../pages/ProductList';
+import AuditLogsPage from '../pages/AuditLogsPage';
 
 //vvvv <-- 1. รับ user prop เข้ามาตรงนี้
 
@@ -30,6 +31,7 @@ export default function MainContent({ activePage, setActivePage, user }) {
             case 'services': return <ServiceList user={user} />;
             case 'product': return <ProductList user={user} />;
             case 'scheduler': return <Scheduler user={user} />;
+            case 'audit-logs': return <AuditLogsPage user={user} />;
             case 'master-data': return <MasterDataPage user={user} />;
             case 'settings': return <SettingsPage user={user} />;
 

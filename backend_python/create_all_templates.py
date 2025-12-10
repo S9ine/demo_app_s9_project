@@ -1,4 +1,4 @@
-import pandas as pd
+import pandas as pd  # type: ignore
 import os
 
 # สร้าง folder templates ถ้ายังไม่มี
@@ -7,7 +7,6 @@ os.makedirs('templates', exist_ok=True)
 # ========== 1. Guard Template (พนักงาน รปภ.) ==========
 guard_data = [
     {
-        'รหัสพนักงาน': 'GRD-001',
         'ชื่อ': 'สมชาย',
         'นามสกุล': 'ใจดี',
         'เบอร์โทร': '081-234-5678',
@@ -17,7 +16,6 @@ guard_data = [
         'สถานะ': 'ทำงาน'
     },
     {
-        'รหัสพนักงาน': 'GRD-002',
         'ชื่อ': 'สมหญิง',
         'นามสกุล': 'รักงาน',
         'เบอร์โทร': '082-345-6789',
@@ -109,9 +107,9 @@ df_guard = pd.DataFrame(guard_data)
 df_staff = pd.DataFrame(staff_data)
 df_site = pd.DataFrame(site_data)
 
-df_guard.to_excel('templates/guard_template.xlsx', index=False, engine='openpyxl')
-df_staff.to_excel('templates/staff_template.xlsx', index=False, engine='openpyxl')
-df_site.to_excel('templates/site_template.xlsx', index=False, engine='openpyxl')
+df_guard.to_excel('templates/guard_template.xlsx', index=False, engine='openpyxl')  # type: ignore
+df_staff.to_excel('templates/staff_template.xlsx', index=False, engine='openpyxl')  # type: ignore
+df_site.to_excel('templates/site_template.xlsx', index=False, engine='openpyxl')  # type: ignore
 
 print("✅ สร้าง guard_template.xlsx สำเร็จ")
 print("✅ สร้าง staff_template.xlsx สำเร็จ")

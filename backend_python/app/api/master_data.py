@@ -26,6 +26,7 @@ from app.models.bank import Bank
 from app.models.user import User
 from app.models.product import Product
 from app.models.service import Service
+from app.api.audit_logs import create_audit_log
 import json
 
 
@@ -166,6 +167,24 @@ async def create_customer( # type: ignore
     await db.commit()
     await db.refresh(new_customer)
     
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="CREATE",
+        entity_type="customers",
+        entity_id=str(new_customer.id),
+        entity_name=new_customer.name,
+        description=f"สร้างลูกค้าใหม่: {new_customer.code} - {new_customer.name}",
+        new_data={
+            "code": new_customer.code,
+            "name": new_customer.name,
+            "businessType": new_customer.businessType,
+            "phone": new_customer.phone,
+            "email": new_customer.email
+        }
+    )
+    
     return {
         "id": str(new_customer.id),
         "code": new_customer.code,
@@ -245,27 +264,53 @@ async def update_customer(  # type: ignore
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
+    # Store old data for audit
+    old_data = {
+        "code": customer.code,
+        "name": customer.name,
+        "businessType": customer.businessType,
+        "phone": customer.phone,
+        "email": customer.email,
+        "isActive": customer.isActive
+    }
+    changes = []
+    
     if customer_data.code is not None:
         # Check duplicate if code is changing
         if customer_data.code != customer.code:
             existing = await db.execute(select(Customer).where(Customer.code == customer_data.code))
             if existing.scalar_one_or_none():
                 raise HTTPException(status_code=400, detail="รหัสลูกค้าซ้ำ")
+            changes.append("code")
         customer.code = customer_data.code  # type: ignore[assignment]
 
     if customer_data.businessType is not None:
+        if customer_data.businessType != customer.businessType:
+            changes.append("businessType")
         customer.businessType = customer_data.businessType  # type: ignore[assignment]
     if customer_data.name is not None:
+        if customer_data.name != customer.name:
+            changes.append("name")
         customer.name = customer_data.name  # type: ignore[assignment]
     if customer_data.taxId is not None:
+        if customer_data.taxId != customer.taxId:
+            changes.append("taxId")
         customer.taxId = customer_data.taxId  # type: ignore[assignment]
     if customer_data.contactPerson is not None:
+        if customer_data.contactPerson != customer.contactPerson:
+            changes.append("contactPerson")
         customer.contactPerson = customer_data.contactPerson  # type: ignore[assignment]
     if customer_data.phone is not None:
+        if customer_data.phone != customer.phone:
+            changes.append("phone")
         customer.phone = customer_data.phone  # type: ignore[assignment]
     if customer_data.email is not None:
+        if customer_data.email != customer.email:
+            changes.append("email")
         customer.email = customer_data.email  # type: ignore[assignment]
     if customer_data.address is not None:
+        if customer_data.address != customer.address:
+            changes.append("address")
         customer.address = customer_data.address  # type: ignore[assignment]
     if customer_data.subDistrict is not None:
         customer.subDistrict = customer_data.subDistrict  # type: ignore[assignment]
@@ -280,10 +325,34 @@ async def update_customer(  # type: ignore
     if customer_data.paymentTerms is not None:
         customer.paymentTerms = customer_data.paymentTerms  # type: ignore[assignment]
     if customer_data.isActive is not None:
+        if customer_data.isActive != customer.isActive:
+            changes.append("isActive")
         customer.isActive = customer_data.isActive  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(customer)
+    
+    # Create audit log if there are changes
+    if changes:
+        await create_audit_log(
+            db=db,
+            current_user=current_user,
+            action="UPDATE",
+            entity_type="customers",
+            entity_id=str(customer.id),
+            entity_name=customer.name,
+            description=f"แก้ไขข้อมูลลูกค้า: {customer.code} - {customer.name}",
+            old_data=old_data,
+            new_data={
+                "code": customer.code,
+                "name": customer.name,
+                "businessType": customer.businessType,
+                "phone": customer.phone,
+                "email": customer.email,
+                "isActive": customer.isActive
+            },
+            changes=changes
+        )
     
     return {
         "id": str(customer.id),
@@ -323,9 +392,32 @@ async def delete_customer(
     
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
+    
+    # Store data for audit before deletion
+    customer_code = customer.code
+    customer_name = customer.name
+    customer_data = {
+        "code": customer.code,
+        "name": customer.name,
+        "businessType": customer.businessType,
+        "phone": customer.phone,
+        "email": customer.email
+    }
         
     await db.delete(customer)
     await db.commit()
+    
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="DELETE",
+        entity_type="customers",
+        entity_id=str(cid),
+        entity_name=customer_name,
+        description=f"ลบลูกค้า: {customer_code} - {customer_name}",
+        old_data=customer_data
+    )
     
     return {"message": "Customer deleted successfully"}
 
@@ -442,7 +534,7 @@ async def import_guards_from_excel(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Import guards from Excel file"""
+    """Import guards from Excel file with auto-generated IDs"""
     if not file.filename.endswith(('.xlsx', '.xls')):  # type: ignore[union-attr]
         raise HTTPException(status_code=400, detail="รองรับเฉพาะไฟล์ Excel (.xlsx หรือ .xls)")
     
@@ -450,8 +542,9 @@ async def import_guards_from_excel(
         contents = await file.read()
         df = pd.read_excel(BytesIO(contents))  # type: ignore[call-overload]
         
+        # Updated: รหัสพนักงาน is now optional - will be auto-generated
         expected_columns = [
-            'รหัสพนักงาน', 'ชื่อ', 'นามสกุล', 'เบอร์โทร', 'ที่อยู่',
+            'ชื่อ', 'นามสกุล', 'เบอร์โทร', 'ที่อยู่',
             'เลขบัญชี', 'รหัสธนาคาร', 'สถานะ'
         ]
         
@@ -462,6 +555,23 @@ async def import_guards_from_excel(
                 detail=f"ไฟล์ขาดคอลัมน์: {', '.join(missing_columns)}"
             )
         
+        # Get the latest guard ID once at the start
+        result = await db.execute(
+            select(Guard.guardId)
+            .where(Guard.guardId.like('PG-%'))
+            .order_by(Guard.guardId.desc())
+            .limit(1)
+        )
+        last_guard_id = result.scalar_one_or_none()
+        
+        if last_guard_id:
+            try:
+                next_num = int(last_guard_id.split('-')[1]) + 1
+            except (IndexError, ValueError):
+                next_num = 1
+        else:
+            next_num = 1
+        
         success_count = 0
         skipped_count = 0
         error_count = 0
@@ -469,26 +579,22 @@ async def import_guards_from_excel(
         
         for index, row in df.iterrows():
             try:
-                guard_id = str(row['รหัสพนักงาน']).strip()
-                
-                if not guard_id or guard_id == 'nan':
+                # Skip empty rows
+                first_name = str(row['ชื่อ']).strip() if pd.notna(row['ชื่อ']) else None
+                if not first_name or first_name == 'nan':
                     continue
                 
-                # Check if guard already exists
-                result = await db.execute(select(Guard).where(Guard.guardId == guard_id))
-                existing = result.scalar_one_or_none()
-                
-                if existing:
-                    skipped_count += 1
-                    continue
+                # Auto-generate guard ID
+                new_guard_id = f"PG-{next_num:04d}"
+                next_num += 1
                 
                 # Parse status
                 status_str = str(row['สถานะ']).strip().lower() if pd.notna(row['สถานะ']) else 'active'
                 is_active = status_str in ['active', 'ใช้งาน', 'เปิด', '1', 'true']
                 
                 new_guard = Guard(
-                    guardId=guard_id,
-                    firstName=str(row['ชื่อ']).strip(),
+                    guardId=new_guard_id,
+                    firstName=first_name,
                     lastName=str(row['นามสกุล']).strip(),
                     phone=str(row['เบอร์โทร']).strip() if pd.notna(row['เบอร์โทร']) else None,
                     address=str(row['ที่อยู่']).strip() if pd.notna(row['ที่อยู่']) else None,
@@ -1089,13 +1195,43 @@ async def get_guards(  # type: ignore
         {
             "id": str(g.id),
             "guardId": g.guardId,
+            # Personal Information
+            "title": g.title,
             "firstName": g.firstName,
             "lastName": g.lastName,
+            "birthDate": g.birthDate,
+            "nationality": g.nationality,
+            "religion": g.religion,
+            "idCardNumber": g.idCardNumber,
+            # Addresses
+            "addressIdCard": g.addressIdCard,
+            "addressCurrent": g.addressCurrent,
             "phone": g.phone,
-            "address": g.address,
+            # Education & License
+            "education": g.education,
+            "licenseNumber": g.licenseNumber,
+            "licenseExpiry": g.licenseExpiry,
+            # Employment
+            "startDate": g.startDate,
+            "isActive": g.isActive,
+            # Banking
+            "bankAccountName": g.bankAccountName,
             "bankAccountNo": g.bankAccountNo,
             "bankCode": g.bankCode,
-            "isActive": g.isActive,
+            # Family Status
+            "maritalStatus": g.maritalStatus,
+            "spouseName": g.spouseName,
+            # Emergency Contact
+            "emergencyContactName": g.emergencyContactName,
+            "emergencyContactPhone": g.emergencyContactPhone,
+            "emergencyContactRelation": g.emergencyContactRelation,
+            # Legacy fields
+            "address": g.address,
+            "position": g.position,
+            "department": g.department,
+            "salary": g.salary,
+            "salaryType": g.salaryType,
+            "paymentMethod": g.paymentMethod,
             "createdAt": g.createdAt
         }
         for g in guards
@@ -1108,37 +1244,139 @@ async def create_guard( # type: ignore
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new guard"""
-    # Check if guardId already exists
-    result = await db.execute(select(Guard).where(Guard.guardId == guard_data.guardId))
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Guard ID already exists")
+    """Create a new guard with auto-generated ID"""
+    # Generate next guard ID
+    result = await db.execute(
+        select(Guard.guardId)
+        .where(Guard.guardId.like('PG-%'))
+        .order_by(Guard.guardId.desc())
+        .limit(1)
+    )
+    last_guard_id = result.scalar_one_or_none()
+    
+    if last_guard_id:
+        # Extract number from PG-XXXX format
+        try:
+            last_num = int(last_guard_id.split('-')[1])
+            next_num = last_num + 1
+        except (IndexError, ValueError):
+            next_num = 1
+    else:
+        next_num = 1
+    
+    # Format as PG-0001, PG-0002, etc.
+    new_guard_id = f"PG-{next_num:04d}"
     
     new_guard = Guard(
-        guardId=guard_data.guardId,
+        guardId=new_guard_id,
+        # Personal Information
+        title=guard_data.title,
         firstName=guard_data.firstName,
         lastName=guard_data.lastName,
+        birthDate=guard_data.birthDate,
+        nationality=guard_data.nationality,
+        religion=guard_data.religion,
+        idCardNumber=guard_data.idCardNumber,
+        # Addresses
+        addressIdCard=guard_data.addressIdCard,
+        addressCurrent=guard_data.addressCurrent,
         phone=guard_data.phone,
-        address=guard_data.address,
+        # Education & License
+        education=guard_data.education,
+        licenseNumber=guard_data.licenseNumber,
+        licenseExpiry=guard_data.licenseExpiry,
+        # Employment
+        startDate=guard_data.startDate,
+        isActive=guard_data.isActive,
+        # Banking
+        bankAccountName=guard_data.bankAccountName,
         bankAccountNo=guard_data.bankAccountNo,
         bankCode=guard_data.bankCode,
-        isActive=guard_data.isActive
+        # Family Status
+        maritalStatus=guard_data.maritalStatus,
+        spouseName=guard_data.spouseName,
+        # Emergency Contact
+        emergencyContactName=guard_data.emergencyContactName,
+        emergencyContactPhone=guard_data.emergencyContactPhone,
+        emergencyContactRelation=guard_data.emergencyContactRelation,
+        # Legacy fields (keep for backward compatibility)
+        address=guard_data.address,
+        position=guard_data.position,
+        department=guard_data.department,
+        salary=guard_data.salary,
+        salaryType=guard_data.salaryType,
+        paymentMethod=guard_data.paymentMethod
     )
     
     db.add(new_guard)
     await db.commit()
     await db.refresh(new_guard)
     
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="CREATE",
+        entity_type="guards",
+        entity_id=new_guard.guardId,  # Use guardId instead of guard.id
+        entity_name=f"{new_guard.guardId} - {new_guard.title or ''}{new_guard.firstName} {new_guard.lastName}",
+        description=f"สร้างข้อมูลพนักงาน: {new_guard.guardId} - {new_guard.title or ''}{new_guard.firstName} {new_guard.lastName}",
+        new_data={
+            "guardId": new_guard.guardId,
+            "title": new_guard.title,
+            "firstName": new_guard.firstName,
+            "lastName": new_guard.lastName,
+            "birthDate": str(new_guard.birthDate) if new_guard.birthDate else None,
+            "nationality": new_guard.nationality,
+            "idCardNumber": new_guard.idCardNumber,
+            "phone": new_guard.phone,
+            "startDate": str(new_guard.startDate) if new_guard.startDate else None,
+            "emergencyContactName": new_guard.emergencyContactName,
+            "emergencyContactPhone": new_guard.emergencyContactPhone,
+            "isActive": new_guard.isActive
+        }
+    )
+    
     return {  # type: ignore
         "id": str(new_guard.id),
         "guardId": new_guard.guardId,
+        # Personal Information
+        "title": new_guard.title,
         "firstName": new_guard.firstName,
         "lastName": new_guard.lastName,
+        "birthDate": new_guard.birthDate,
+        "nationality": new_guard.nationality,
+        "religion": new_guard.religion,
+        "idCardNumber": new_guard.idCardNumber,
+        # Addresses
+        "addressIdCard": new_guard.addressIdCard,
+        "addressCurrent": new_guard.addressCurrent,
         "phone": new_guard.phone,
-        "address": new_guard.address,
+        # Education & License
+        "education": new_guard.education,
+        "licenseNumber": new_guard.licenseNumber,
+        "licenseExpiry": new_guard.licenseExpiry,
+        # Employment
+        "startDate": new_guard.startDate,
+        "isActive": new_guard.isActive,
+        # Banking
+        "bankAccountName": new_guard.bankAccountName,
         "bankAccountNo": new_guard.bankAccountNo,
         "bankCode": new_guard.bankCode,
-        "isActive": new_guard.isActive,
+        # Family Status
+        "maritalStatus": new_guard.maritalStatus,
+        "spouseName": new_guard.spouseName,
+        # Emergency Contact
+        "emergencyContactName": new_guard.emergencyContactName,
+        "emergencyContactPhone": new_guard.emergencyContactPhone,
+        "emergencyContactRelation": new_guard.emergencyContactRelation,
+        # Legacy fields
+        "address": new_guard.address,
+        "position": new_guard.position,
+        "department": new_guard.department,
+        "salary": new_guard.salary,
+        "salaryType": new_guard.salaryType,
+        "paymentMethod": new_guard.paymentMethod,
         "createdAt": new_guard.createdAt
     }
 
@@ -1164,13 +1402,43 @@ async def get_guard(  # type: ignore
     return {  # type: ignore
         "id": str(guard.id),
         "guardId": guard.guardId,
+        # Personal Information
+        "title": guard.title,
         "firstName": guard.firstName,
         "lastName": guard.lastName,
+        "birthDate": guard.birthDate,
+        "nationality": guard.nationality,
+        "religion": guard.religion,
+        "idCardNumber": guard.idCardNumber,
+        # Addresses
+        "addressIdCard": guard.addressIdCard,
+        "addressCurrent": guard.addressCurrent,
         "phone": guard.phone,
-        "address": guard.address,
+        # Education & License
+        "education": guard.education,
+        "licenseNumber": guard.licenseNumber,
+        "licenseExpiry": guard.licenseExpiry,
+        # Employment
+        "startDate": guard.startDate,
+        "isActive": guard.isActive,
+        # Banking
+        "bankAccountName": guard.bankAccountName,
         "bankAccountNo": guard.bankAccountNo,
         "bankCode": guard.bankCode,
-        "isActive": guard.isActive,
+        # Family Status
+        "maritalStatus": guard.maritalStatus,
+        "spouseName": guard.spouseName,
+        # Emergency Contact
+        "emergencyContactName": guard.emergencyContactName,
+        "emergencyContactPhone": guard.emergencyContactPhone,
+        "emergencyContactRelation": guard.emergencyContactRelation,
+        # Legacy fields
+        "address": guard.address,
+        "position": guard.position,
+        "department": guard.department,
+        "salary": guard.salary,
+        "salaryType": guard.salaryType,
+        "paymentMethod": guard.paymentMethod,
         "createdAt": guard.createdAt
     }
 
@@ -1194,34 +1462,213 @@ async def update_guard(  # type: ignore
     if not guard:
         raise HTTPException(status_code=404, detail="Guard not found")
     
+    # Store old data for audit (complete snapshot)
+    old_data = {
+        "guardId": guard.guardId,
+        "title": guard.title,
+        "firstName": guard.firstName,
+        "lastName": guard.lastName,
+        "birthDate": str(guard.birthDate) if guard.birthDate else None,
+        "nationality": guard.nationality,
+        "religion": guard.religion,
+        "idCardNumber": guard.idCardNumber,
+        "addressIdCard": guard.addressIdCard,
+        "addressCurrent": guard.addressCurrent,
+        "phone": guard.phone,
+        "education": guard.education,
+        "licenseNumber": guard.licenseNumber,
+        "licenseExpiry": str(guard.licenseExpiry) if guard.licenseExpiry else None,
+        "startDate": str(guard.startDate) if guard.startDate else None,
+        "bankAccountName": guard.bankAccountName,
+        "bankAccountNo": guard.bankAccountNo,
+        "bankCode": guard.bankCode,
+        "maritalStatus": guard.maritalStatus,
+        "spouseName": guard.spouseName,
+        "emergencyContactName": guard.emergencyContactName,
+        "emergencyContactPhone": guard.emergencyContactPhone,
+        "emergencyContactRelation": guard.emergencyContactRelation,
+        "isActive": guard.isActive
+    }
+    changes = []
+    
+    # Personal Information
+    if guard_data.title is not None:
+        guard.title = guard_data.title  # type: ignore[assignment]
     if guard_data.firstName is not None:
+        if guard_data.firstName != guard.firstName:
+            changes.append("firstName")
         guard.firstName = guard_data.firstName  # type: ignore[assignment]
     if guard_data.lastName is not None:
+        if guard_data.lastName != guard.lastName:
+            changes.append("lastName")
         guard.lastName = guard_data.lastName  # type: ignore[assignment]
+    if guard_data.birthDate is not None:
+        if guard_data.birthDate != guard.birthDate:
+            changes.append("birthDate")
+        guard.birthDate = guard_data.birthDate  # type: ignore[assignment]
+    if guard_data.nationality is not None:
+        guard.nationality = guard_data.nationality  # type: ignore[assignment]
+    if guard_data.religion is not None:
+        guard.religion = guard_data.religion  # type: ignore[assignment]
+    if guard_data.idCardNumber is not None:
+        if guard_data.idCardNumber != guard.idCardNumber:
+            changes.append("idCardNumber")
+        guard.idCardNumber = guard_data.idCardNumber  # type: ignore[assignment]
+    
+    # Addresses
+    if guard_data.addressIdCard is not None:
+        if guard_data.addressIdCard != guard.addressIdCard:
+            changes.append("addressIdCard")
+        guard.addressIdCard = guard_data.addressIdCard  # type: ignore[assignment]
+    if guard_data.addressCurrent is not None:
+        if guard_data.addressCurrent != guard.addressCurrent:
+            changes.append("addressCurrent")
+        guard.addressCurrent = guard_data.addressCurrent  # type: ignore[assignment]
     if guard_data.phone is not None:
+        if guard_data.phone != guard.phone:
+            changes.append("phone")
         guard.phone = guard_data.phone  # type: ignore[assignment]
-    if guard_data.address is not None:
-        guard.address = guard_data.address  # type: ignore[assignment]
+    
+    # Education & License
+    if guard_data.education is not None:
+        guard.education = guard_data.education  # type: ignore[assignment]
+    if guard_data.licenseNumber is not None:
+        guard.licenseNumber = guard_data.licenseNumber  # type: ignore[assignment]
+    if guard_data.licenseExpiry is not None:
+        guard.licenseExpiry = guard_data.licenseExpiry  # type: ignore[assignment]
+    
+    # Employment
+    if guard_data.startDate is not None:
+        if guard_data.startDate != guard.startDate:
+            changes.append("startDate")
+        guard.startDate = guard_data.startDate  # type: ignore[assignment]
+    if guard_data.isActive is not None:
+        if guard_data.isActive != guard.isActive:
+            changes.append("isActive")
+        guard.isActive = guard_data.isActive  # type: ignore[assignment]
+    
+    # Banking
+    if guard_data.bankAccountName is not None:
+        guard.bankAccountName = guard_data.bankAccountName  # type: ignore[assignment]
     if guard_data.bankAccountNo is not None:
         guard.bankAccountNo = guard_data.bankAccountNo  # type: ignore[assignment]
     if guard_data.bankCode is not None:
         guard.bankCode = guard_data.bankCode  # type: ignore[assignment]
-    if guard_data.isActive is not None:
-        guard.isActive = guard_data.isActive  # type: ignore[assignment]
+    
+    # Family Status
+    if guard_data.maritalStatus is not None:
+        guard.maritalStatus = guard_data.maritalStatus  # type: ignore[assignment]
+    if guard_data.spouseName is not None:
+        guard.spouseName = guard_data.spouseName  # type: ignore[assignment]
+    
+    # Emergency Contact
+    if guard_data.emergencyContactName is not None:
+        if guard_data.emergencyContactName != guard.emergencyContactName:
+            changes.append("emergencyContactName")
+        guard.emergencyContactName = guard_data.emergencyContactName  # type: ignore[assignment]
+    if guard_data.emergencyContactPhone is not None:
+        if guard_data.emergencyContactPhone != guard.emergencyContactPhone:
+            changes.append("emergencyContactPhone")
+        guard.emergencyContactPhone = guard_data.emergencyContactPhone  # type: ignore[assignment]
+    if guard_data.emergencyContactRelation is not None:
+        guard.emergencyContactRelation = guard_data.emergencyContactRelation  # type: ignore[assignment]
+    
+    # Legacy fields
+    if guard_data.address is not None:
+        guard.address = guard_data.address  # type: ignore[assignment]
+    if guard_data.position is not None:
+        guard.position = guard_data.position  # type: ignore[assignment]
+    if guard_data.department is not None:
+        guard.department = guard_data.department  # type: ignore[assignment]
+    if guard_data.salary is not None:
+        guard.salary = guard_data.salary  # type: ignore[assignment]
+    if guard_data.salaryType is not None:
+        guard.salaryType = guard_data.salaryType  # type: ignore[assignment]
+    if guard_data.paymentMethod is not None:
+        guard.paymentMethod = guard_data.paymentMethod  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(guard)
     
+    # Create audit log for all updates (with detailed tracking)
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="UPDATE",
+        entity_type="guards",
+        entity_id=guard.guardId,  # Use guardId instead of guard.id
+        entity_name=f"{guard.guardId} - {guard.title or ''}{guard.firstName} {guard.lastName}",
+        description=f"แก้ไขข้อมูลพนักงาน: {guard.guardId} - {guard.title or ''}{guard.firstName} {guard.lastName}",
+        old_data=old_data,
+        new_data={
+            "guardId": guard.guardId,
+            "title": guard.title,
+            "firstName": guard.firstName,
+            "lastName": guard.lastName,
+            "birthDate": str(guard.birthDate) if guard.birthDate else None,
+            "nationality": guard.nationality,
+            "religion": guard.religion,
+            "idCardNumber": guard.idCardNumber,
+            "addressIdCard": guard.addressIdCard,
+            "addressCurrent": guard.addressCurrent,
+            "phone": guard.phone,
+            "education": guard.education,
+            "licenseNumber": guard.licenseNumber,
+            "licenseExpiry": str(guard.licenseExpiry) if guard.licenseExpiry else None,
+            "startDate": str(guard.startDate) if guard.startDate else None,
+            "bankAccountName": guard.bankAccountName,
+            "bankAccountNo": guard.bankAccountNo,
+            "bankCode": guard.bankCode,
+            "maritalStatus": guard.maritalStatus,
+            "spouseName": guard.spouseName,
+            "emergencyContactName": guard.emergencyContactName,
+            "emergencyContactPhone": guard.emergencyContactPhone,
+            "emergencyContactRelation": guard.emergencyContactRelation,
+            "isActive": guard.isActive
+        },
+        changes=changes if changes else None
+    )
+    
     return {  # type: ignore
         "id": str(guard.id),
         "guardId": guard.guardId,
+        # Personal Information
+        "title": guard.title,
         "firstName": guard.firstName,
         "lastName": guard.lastName,
+        "birthDate": guard.birthDate,
+        "nationality": guard.nationality,
+        "religion": guard.religion,
+        "idCardNumber": guard.idCardNumber,
+        # Addresses
+        "addressIdCard": guard.addressIdCard,
+        "addressCurrent": guard.addressCurrent,
         "phone": guard.phone,
-        "address": guard.address,
+        # Education & License
+        "education": guard.education,
+        "licenseNumber": guard.licenseNumber,
+        "licenseExpiry": guard.licenseExpiry,
+        # Employment
+        "startDate": guard.startDate,
+        "isActive": guard.isActive,
+        # Banking
+        "bankAccountName": guard.bankAccountName,
         "bankAccountNo": guard.bankAccountNo,
         "bankCode": guard.bankCode,
-        "isActive": guard.isActive,
+        # Family Status
+        "maritalStatus": guard.maritalStatus,
+        "spouseName": guard.spouseName,
+        # Emergency Contact
+        "emergencyContactName": guard.emergencyContactName,
+        "emergencyContactPhone": guard.emergencyContactPhone,
+        "emergencyContactRelation": guard.emergencyContactRelation,
+        # Legacy fields
+        "address": guard.address,
+        "position": guard.position,
+        "department": guard.department,
+        "salary": guard.salary,
+        "salaryType": guard.salaryType,
+        "paymentMethod": guard.paymentMethod,
         "createdAt": guard.createdAt
     }
 
@@ -1243,9 +1690,32 @@ async def delete_guard(
     
     if not guard:
         raise HTTPException(status_code=404, detail="Guard not found")
+    
+    # Store data for audit before deletion
+    guard_id_code = guard.guardId
+    guard_name = f"{guard.firstName} {guard.lastName}"
+    guard_data = {
+        "guardId": guard.guardId,
+        "firstName": guard.firstName,
+        "lastName": guard.lastName,
+        "phone": guard.phone,
+        "isActive": guard.isActive
+    }
         
     await db.delete(guard)
     await db.commit()
+    
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="DELETE",
+        entity_type="guards",
+        entity_id=guard_id_code,  # Use guardId instead of str(gid)
+        entity_name=guard_name,
+        description=f"ลบพนักงาน: {guard_id_code} - {guard_name}",
+        old_data=guard_data
+    )
     
     return {"message": "Guard deleted successfully"}
 

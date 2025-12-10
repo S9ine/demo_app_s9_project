@@ -229,58 +229,6 @@ export default function Dashboard({ setActivePage }) {
             </div>
             </div>
 
-            {/* Quick Actions with enhanced styling */}
-            <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-5 flex items-center">
-                    <div className="w-1 h-8 bg-purple-600 rounded-full mr-3"></div>
-                    เมนูด่วน
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <QuickActionCard
-                        title="เพิ่มลูกค้า"
-                        description="เพิ่มข้อมูลลูกค้าใหม่"
-                        icon={Building2}
-                        color="bg-purple-500"
-                        onClick={() => setActivePage('customer-list')}
-                    />
-                    <QuickActionCard
-                        title="เพิ่มพนักงาน"
-                        description="เพิ่มพนักงานรปภ. หรือภายใน"
-                        icon={Users}
-                        color="bg-green-500"
-                        onClick={() => setActivePage('guard-list')}
-                    />
-                    <QuickActionCard
-                        title="สร้างเอกสารเบิก"
-                        description="สร้างเอกสารเบิกรายวัน"
-                        icon={DollarSign}
-                        color="bg-orange-500"
-                        onClick={() => setActivePage('daily-advance')}
-                    />
-                    <QuickActionCard
-                        title="จัดตารางงาน"
-                        description="จัดการตารางการทำงาน"
-                        icon={Calendar}
-                        color="bg-violet-500"
-                        onClick={() => setActivePage('scheduler')}
-                    />
-                    <QuickActionCard
-                        title="จัดการบริการ"
-                        description="จัดการบริการและสินค้า"
-                        icon={Package}
-                        color="bg-blue-500"
-                        onClick={() => setActivePage('services')}
-                    />
-                    <QuickActionCard
-                        title="ตั้งค่าระบบ"
-                        description="จัดการข้อมูลผู้ใช้และสิทธิ์"
-                        icon={Users}
-                        color="bg-gray-500"
-                        onClick={() => setActivePage('settings')}
-                    />
-                </div>
-            </div>
-
             {/* Status Summary with enhanced design */}
             <div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-5 flex items-center">

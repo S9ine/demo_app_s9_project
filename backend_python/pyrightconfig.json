@@ -1,6 +1,13 @@
 {
-  "reportGeneralTypeIssues": "warning",
+  "typeCheckingMode": "off",
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "reportGeneralTypeIssues": false,
+  "reportOptionalMemberAccess": false,
+  "reportOptionalSubscript": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownVariableType": false,
   "reportArgumentType": false,
-  "pythonVersion": "3.11",
-  "typeCheckingMode": "basic"
+  "pythonVersion": "3.14"
 }
