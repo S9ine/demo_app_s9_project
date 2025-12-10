@@ -139,64 +139,67 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
                 </svg>
             </button>
 
-            {/* Backdrop */}
+            {/* Backdrop with Blur */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 z-[100] transition-opacity duration-200"
+                    className="fixed inset-0 bg-black/40 backdrop-blur-md z-[100] transition-all duration-300"
                     onClick={() => setIsOpen(false)}
                 ></div>
             )}
 
-            {/* Menu Modal Card - Google Apps Style ด้านซ้าย */}
+            {/* Menu Modal Card - Centered Large Style */}
             <div
-                className={`fixed top-16 left-4 w-[360px] max-h-[600px] bg-white rounded-3xl shadow-2xl z-[101] transition-all duration-300 transform ${
-                    isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0 pointer-events-none'
+                className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[700px] bg-white rounded-3xl shadow-2xl z-[101] transition-all duration-300 transform ${
+                    isOpen ? 'scale-100 opacity-100' : 'scale-90 opacity-0 pointer-events-none'
                 }`}
             >
                 {/* Header */}
-                <div className="p-6 pb-4 border-b border-gray-100">
+                <div className="p-8 pb-6 border-b border-gray-100">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-base font-medium text-gray-700">เมนูระบบ</h2>
+                        <div>
+                            <h2 className="text-3xl font-bold text-gray-800">เลือกเมนู</h2>
+                            <p className="text-sm text-gray-500 mt-1">เลือกฟังก์ชันที่ต้องการใช้งาน</p>
+                        </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                         >
-                            <X className="w-5 h-5 text-gray-500" />
+                            <X className="w-6 h-6 text-gray-500" />
                         </button>
                     </div>
                 </div>
 
                 {/* Search Box */}
-                <div className="px-6 pt-4">
+                <div className="px-8 pt-6">
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input
                             type="text"
                             placeholder="ค้นหาแอป"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                         />
                         {searchTerm && (
                             <button
                                 onClick={clearSearch}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-200 rounded-full transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-200 rounded-full transition-colors"
                             >
-                                <X className="w-3.5 h-3.5 text-gray-500" />
+                                <X className="w-4 h-4 text-gray-500" />
                             </button>
                         )}
                     </div>
                 </div>
 
                 {/* Navigation - Flat Menu Grid (ไม่มี Submenu) */}
-                <nav className="p-4 overflow-y-auto custom-scrollbar" style={{ maxHeight: '460px' }}>
+                <nav className="p-8 overflow-y-auto custom-scrollbar flex-1" style={{ maxHeight: 'calc(700px - 200px)' }}>
                     {filteredMenuItems.length === 0 ? (
-                        <div className="text-center py-12 text-gray-400">
-                            <Search className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                            <p className="text-sm text-gray-500">ไม่พบแอป</p>
+                        <div className="text-center py-16 text-gray-400">
+                            <Search className="w-16 h-16 mx-auto mb-3 opacity-30" />
+                            <p className="text-base text-gray-500">ไม่พบแอป</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-3 gap-3">
+                        <div className="grid grid-cols-5 gap-4 content-start" style={{ gridAutoRows: 'min-content' }}>
                             {filteredMenuItems.map((item) => {
                                 const isActive = activePage === item.id || item.subItems?.some(sub => sub.id === activePage);
                                 
@@ -222,25 +225,25 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
                                                 key={sub.id}
                                                 onClick={() => handleSubMenuClick(sub.id)}
                                                 className={`
-                                                    group p-3 rounded-xl transition-all
+                                                    group p-4 rounded-2xl transition-all
                                                     ${isSubActive 
                                                         ? 'bg-blue-50 ring-2 ring-blue-400 shadow-lg' 
                                                         : 'hover:bg-gray-50'
                                                     }
                                                 `}
                                             >
-                                                <div className="flex flex-col items-center space-y-1.5">
+                                                <div className="flex flex-col items-center space-y-2">
                                                     <div className={`
-                                                        w-12 h-12 rounded-2xl flex items-center justify-center transition-all
+                                                        w-16 h-16 rounded-2xl flex items-center justify-center transition-all
                                                         ${isSubActive 
                                                             ? 'bg-blue-500 shadow-xl scale-110' 
                                                             : `bg-gradient-to-br ${subGradient} group-hover:shadow-lg group-hover:scale-105`
                                                         }
                                                     `}>
-                                                        <SubIcon className={`w-6 h-6 ${isSubActive ? 'text-white' : 'text-white'}`} />
+                                                        <SubIcon className={`w-8 h-8 ${isSubActive ? 'text-white' : 'text-white'}`} />
                                                     </div>
                                                     <span className={`
-                                                        text-[10px] font-medium text-center leading-tight line-clamp-2
+                                                        text-sm font-semibold text-center leading-tight line-clamp-2
                                                         ${isSubActive ? 'text-blue-600 font-bold' : 'text-gray-700'}
                                                     `}>
                                                         {highlightText(sub.label)}
@@ -257,29 +260,29 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
                                         key={item.id}
                                         onClick={() => handleMenuClick(item)}
                                         className={`
-                                            group p-3 rounded-xl transition-all
+                                            group p-4 rounded-2xl transition-all
                                             ${isActive 
                                                 ? 'bg-blue-50 ring-2 ring-blue-400 shadow-lg' 
                                                 : 'hover:bg-gray-50'
                                             }
                                         `}
                                     >
-                                        <div className="flex flex-col items-center space-y-1.5">
+                                        <div className="flex flex-col items-center space-y-2">
                                             <div className={`
-                                                w-12 h-12 rounded-2xl flex items-center justify-center transition-all
+                                                w-16 h-16 rounded-2xl flex items-center justify-center transition-all
                                                 ${isActive 
                                                     ? 'bg-blue-500 shadow-xl scale-110' 
                                                     : `bg-gradient-to-br ${gradient} group-hover:shadow-lg group-hover:scale-105`
                                                 }
                                             `}>
                                                 {isActive ? (
-                                                    <item.icon className="w-6 h-6 text-white" />
+                                                    <item.icon className="w-8 h-8 text-white" />
                                                 ) : (
-                                                    <item.icon className="w-6 h-6 text-white" />
+                                                    <item.icon className="w-8 h-8 text-white" />
                                                 )}
                                             </div>
                                             <span className={`
-                                                text-[10px] font-medium text-center leading-tight line-clamp-2
+                                                text-sm font-semibold text-center leading-tight line-clamp-2
                                                 ${isActive ? 'text-blue-600 font-bold' : 'text-gray-700'}
                                             `}>
                                                 {highlightText(item.label)}
