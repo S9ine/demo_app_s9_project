@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Home, Users, Briefcase, UserCheck, FileText, Calendar, Settings, X, Menu, Search } from 'lucide-react';
+import { 
+    ChevronDown, Home, Users, Briefcase, UserCheck, FileText, Calendar, Settings, X, Menu, Search,
+    Building2, MapPin, Shield, UsersRound, Receipt, Package, Wrench, DollarSign,
+    ShoppingBag, HeartHandshake, LayoutGrid
+} from 'lucide-react';
 
 export default function Sidebar({ setActivePage, activePage, userPermissions, userRole }) {
     const [openMenus, setOpenMenus] = useState({});
@@ -39,35 +43,35 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
     };
 
     const menuItems = [
-        { id: 'dashboard', icon: Home, label: 'หน้าหลัก' },
+        { id: 'dashboard', icon: LayoutGrid, label: 'หน้าหลัก', color: 'from-blue-500 to-blue-600' },
         {
-            id: 'customers', icon: Users, label: 'ข้อมูลลูกค้า', subItems: [
-                { id: 'customer-list', label: 'เพิ่มข้อมูลลูกค้า' },
-                { id: 'site-list', label: 'เพิ่มข้อมูลหน่วยงาน' },
+            id: 'customers', icon: Building2, label: 'ข้อมูลลูกค้า', color: 'from-purple-500 to-purple-600', subItems: [
+                { id: 'customer-list', icon: Building2, label: 'เพิ่มข้อมูลลูกค้า', color: 'from-purple-500 to-purple-600' },
+                { id: 'site-list', icon: MapPin, label: 'เพิ่มข้อมูลหน่วยงาน', color: 'from-indigo-500 to-indigo-600' },
             ]
         },
         {
-            id: 'employees', icon: Briefcase, label: 'ข้อมูลพนักงาน', subItems: [
-                { id: 'guard-list', label: 'พนักงานรปภ.' },
-                { id: 'staff-list', label: 'พนักงานภายใน' },
+            id: 'employees', icon: UsersRound, label: 'ข้อมูลพนักงาน', color: 'from-green-500 to-green-600', subItems: [
+                { id: 'guard-list', icon: Shield, label: 'พนักงานรปภ.', color: 'from-emerald-500 to-emerald-600' },
+                { id: 'staff-list', icon: Users, label: 'พนักงานภายใน', color: 'from-teal-500 to-teal-600' },
             ]
         },
         {
-            id: 'requests', icon: FileText, label: 'รายการเบิก', subItems: [
-                { id: 'daily-advance', label: 'เบิกรายวัน' },
-                { id: 'equipment-request', label: 'เบิกอุปกรณ์' },
-                { id: 'damage-deposit', label: 'เงินประกันความเสียหาย' },
+            id: 'requests', icon: Receipt, label: 'รายการเบิก', color: 'from-orange-500 to-orange-600', subItems: [
+                { id: 'daily-advance', icon: DollarSign, label: 'เบิกรายวัน', color: 'from-amber-500 to-amber-600' },
+                { id: 'equipment-request', icon: Wrench, label: 'เบิกอุปกรณ์', color: 'from-orange-500 to-orange-600' },
+                { id: 'damage-deposit', icon: ShoppingBag, label: 'เงินประกันความเสียหาย', color: 'from-red-500 to-red-600' },
             ]
         },
         {
-            id: 'services', icon: FileText, label: 'สินค้าและบริการ', subItems: [
-                { id: 'services', label: 'บริการ' },
-                { id: 'product', label: 'สินค้า' },
+            id: 'services', icon: HeartHandshake, label: 'สินค้าและบริการ', color: 'from-pink-500 to-pink-600', subItems: [
+                { id: 'services', icon: HeartHandshake, label: 'บริการ', color: 'from-pink-500 to-pink-600' },
+                { id: 'product', icon: Package, label: 'สินค้า', color: 'from-rose-500 to-rose-600' },
             ]
         },
-        { id: 'social-security', icon: UserCheck, label: 'ประกันสังคม' },
-        { id: 'scheduler', icon: Calendar, label: 'ตารางงาน' },
-        { id: 'settings', icon: Settings, label: 'ตั้งค่าระบบ' },
+        { id: 'social-security', icon: UserCheck, label: 'ประกันสังคม', color: 'from-cyan-500 to-cyan-600' },
+        { id: 'scheduler', icon: Calendar, label: 'ตารางงาน', color: 'from-violet-500 to-violet-600' },
+        { id: 'settings', icon: Settings, label: 'ตั้งค่าระบบ', color: 'from-gray-500 to-gray-600' },
     ];
 
     const visibleMenuItems = menuItems.map(item => {
@@ -193,20 +197,8 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
                                 // ไม่ใช้ highlight แล้ว - แค่ return text ปกติ
                                 const highlightText = (text) => text;
                                 
-                                // สุ่มสี gradient สำหรับแต่ละ app
-                                const colors = [
-                                    'from-blue-500 to-blue-600',
-                                    'from-green-500 to-green-600',
-                                    'from-red-500 to-red-600',
-                                    'from-yellow-500 to-yellow-600',
-                                    'from-purple-500 to-purple-600',
-                                    'from-pink-500 to-pink-600',
-                                    'from-indigo-500 to-indigo-600',
-                                    'from-teal-500 to-teal-600',
-                                    'from-orange-500 to-orange-600'
-                                ];
-                                const colorIndex = item.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
-                                const gradient = colors[colorIndex];
+                                // ใช้สีที่กำหนดไว้ใน menuItems
+                                const gradient = item.color || 'from-gray-500 to-gray-600';
                                 
                                 // ถ้ามี submenu ให้แสดงทุก submenu แทน parent
                                 if (item.subItems) {
@@ -216,8 +208,8 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
                                             return null;
                                         }
                                         
-                                        const subColorIndex = sub.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
-                                        const subGradient = colors[subColorIndex];
+                                        const SubIcon = sub.icon;
+                                        const subGradient = sub.color || 'from-gray-500 to-gray-600';
                                         
                                         return (
                                             <button
@@ -239,11 +231,7 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
                                                             : `bg-gradient-to-br ${subGradient} group-hover:shadow-lg group-hover:scale-105`
                                                         }
                                                     `}>
-                                                        {isSubActive ? (
-                                                            <div className="w-5 h-5 rounded-lg bg-white"></div>
-                                                        ) : (
-                                                            <div className="w-5 h-5 rounded-lg bg-white/90"></div>
-                                                        )}
+                                                        <SubIcon className={`w-6 h-6 ${isSubActive ? 'text-white' : 'text-white'}`} />
                                                     </div>
                                                     <span className={`
                                                         text-[10px] font-medium text-center leading-tight line-clamp-2
