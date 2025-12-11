@@ -143,6 +143,14 @@ class ContractedService(BaseModel):
     otherBonus: float = 0.0
 
 
+class ShiftAssignment(BaseModel):
+    """ข้อมูลกะงาน"""
+    shiftId: int = Field(..., description="ID ของกะ")
+    shiftCode: str = Field(..., description="รหัสกะ")
+    shiftName: str = Field(..., description="ชื่อกะ")
+    numberOfPeople: int = Field(..., description="จำนวนคน", ge=1)
+
+
 class SiteCreate(BaseModel):
     siteCode: str = Field(..., min_length=1, description="รหัสหน่วยงาน (ไม่อนุญาตให้มีช่องว่าง)")
     name: str = Field(..., min_length=1, description="ชื่อหน่วยงาน")
@@ -167,6 +175,9 @@ class SiteCreate(BaseModel):
     
     # ข้อมูลการจ้าง
     employmentDetails: List[EmploymentDetail] = []
+    
+    # ข้อมูลกะงาน
+    shiftAssignments: List[ShiftAssignment] = []
     
     # เก่า (deprecated)
     contractedServices: List[ContractedService] = []
@@ -199,6 +210,7 @@ class SiteUpdate(BaseModel):
     contactPerson: Optional[str] = None
     phone: Optional[str] = None
     employmentDetails: Optional[List[EmploymentDetail]] = None
+    shiftAssignments: Optional[List[ShiftAssignment]] = None
     contractedServices: Optional[List[ContractedService]] = None
     isActive: Optional[bool] = None
 
@@ -232,6 +244,7 @@ class SiteResponse(BaseModel):
     contactPerson: Optional[str] = None
     phone: Optional[str] = None
     employmentDetails: List[EmploymentDetail] = []
+    shiftAssignments: List[ShiftAssignment] = []
     contractedServices: List[ContractedService] = []
     isActive: bool
     createdAt: Optional[datetime] = None
@@ -627,5 +640,27 @@ class ServiceResponse(BaseModel):
     diligenceBonus: float
     sevenDayBonus: float
     pointBonus: float
+    isActive: bool
+    createdAt: Optional[datetime] = None
+
+
+# ========== SHIFT SCHEMAS ==========
+
+class ShiftCreate(BaseModel):
+    shiftCode: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+    isActive: bool = True
+
+
+class ShiftUpdate(BaseModel):
+    shiftCode: Optional[str] = None
+    name: Optional[str] = None
+    isActive: Optional[bool] = None
+
+
+class ShiftResponse(BaseModel):
+    id: int
+    shiftCode: str
+    name: str
     isActive: bool
     createdAt: Optional[datetime] = None

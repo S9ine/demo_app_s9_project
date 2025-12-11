@@ -14,7 +14,8 @@ from app.schemas.master_data import (
     StaffCreate, StaffUpdate, StaffResponse,
     BankCreate, BankUpdate, BankResponse,
     ProductCreate, ProductUpdate, ProductResponse,
-    ServiceCreate, ServiceUpdate, ServiceResponse
+    ServiceCreate, ServiceUpdate, ServiceResponse,
+    ShiftCreate, ShiftUpdate, ShiftResponse
 )
 from app.core.deps import get_current_active_user
 from app.database import get_db
@@ -26,6 +27,7 @@ from app.models.bank import Bank
 from app.models.user import User
 from app.models.product import Product
 from app.models.service import Service
+from app.models.shift import Shift
 from app.api.audit_logs import create_audit_log
 import json
 
@@ -878,6 +880,7 @@ async def get_sites(  # type: ignore
             "contactPerson": site.contactPerson,
             "phone": site.phone,
             "employmentDetails": json.loads(site.employmentDetails) if hasattr(site, 'employmentDetails') and site.employmentDetails else [],  # type: ignore[arg-type]
+            "shiftAssignments": json.loads(site.shiftAssignments) if hasattr(site, 'shiftAssignments') and site.shiftAssignments else [],  # type: ignore[arg-type]
             "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],  # type: ignore[arg-type]
             "isActive": site.isActive,
             "createdAt": site.createdAt
@@ -971,6 +974,7 @@ async def create_site(  # type: ignore
         contactPerson=site_data.contactPerson,
         phone=site_data.phone,
         employmentDetails=json.dumps([d.model_dump() for d in site_data.employmentDetails]) if site_data.employmentDetails else None,
+        shiftAssignments=json.dumps([s.model_dump() for s in site_data.shiftAssignments]) if site_data.shiftAssignments else None,
         contractedServices=json.dumps([s.model_dump() for s in site_data.contractedServices]) if site_data.contractedServices else None,
         isActive=site_data.isActive
     )
@@ -999,6 +1003,7 @@ async def create_site(  # type: ignore
             "phone": new_site.phone,
             "contactPerson": new_site.contactPerson,
             "employmentDetails": json.loads(new_site.employmentDetails) if new_site.employmentDetails else [],
+            "shiftAssignments": json.loads(new_site.shiftAssignments) if new_site.shiftAssignments else [],
             "isActive": new_site.isActive
         }
     )
@@ -1020,6 +1025,7 @@ async def create_site(  # type: ignore
         "contactPerson": new_site.contactPerson,
         "phone": new_site.phone,
         "employmentDetails": json.loads(new_site.employmentDetails) if new_site.employmentDetails else [],  # type: ignore[arg-type]
+        "shiftAssignments": json.loads(new_site.shiftAssignments) if new_site.shiftAssignments else [],  # type: ignore[arg-type]
         "contractedServices": json.loads(new_site.contractedServices) if new_site.contractedServices else [],  # type: ignore[arg-type]
         "isActive": new_site.isActive,
         "createdAt": new_site.createdAt
@@ -1064,6 +1070,7 @@ async def get_site( # type: ignore
         "contactPerson": site.contactPerson,
         "phone": site.phone,
         "employmentDetails": json.loads(site.employmentDetails) if hasattr(site, 'employmentDetails') and site.employmentDetails else [],  # type: ignore[arg-type]
+        "shiftAssignments": json.loads(site.shiftAssignments) if hasattr(site, 'shiftAssignments') and site.shiftAssignments else [],  # type: ignore[arg-type]
         "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],  # type: ignore[arg-type]
         "isActive": site.isActive,
         "createdAt": site.createdAt
@@ -1105,6 +1112,7 @@ async def update_site(  # type: ignore
         "contactPerson": site.contactPerson,
         "phone": site.phone,
         "employmentDetails": json.loads(site.employmentDetails) if site.employmentDetails else [],
+        "shiftAssignments": json.loads(site.shiftAssignments) if hasattr(site, 'shiftAssignments') and site.shiftAssignments else [],
         "isActive": site.isActive
     }
     changes = []
@@ -1176,6 +1184,12 @@ async def update_site(  # type: ignore
         if new_employment != old_employment:
             changes.append("employmentDetails")
         site.employmentDetails = new_employment  # type: ignore[assignment]
+    if site_data.shiftAssignments is not None:
+        new_shifts = json.dumps([s.model_dump() for s in site_data.shiftAssignments])
+        old_shifts = site.shiftAssignments if hasattr(site, 'shiftAssignments') else None
+        if new_shifts != old_shifts:
+            changes.append("shiftAssignments")
+        site.shiftAssignments = new_shifts  # type: ignore[assignment]
     if site_data.contractedServices is not None:
         site.contractedServices = json.dumps([s.model_dump() for s in site_data.contractedServices])  # type: ignore[assignment]
     if site_data.isActive is not None:
@@ -1215,6 +1229,7 @@ async def update_site(  # type: ignore
             "contactPerson": site.contactPerson,
             "phone": site.phone,
             "employmentDetails": json.loads(site.employmentDetails) if site.employmentDetails else [],
+            "shiftAssignments": json.loads(site.shiftAssignments) if hasattr(site, 'shiftAssignments') and site.shiftAssignments else [],
             "isActive": site.isActive
         },
         changes=changes if changes else None
@@ -1237,6 +1252,7 @@ async def update_site(  # type: ignore
         "contactPerson": site.contactPerson,
         "phone": site.phone,
         "employmentDetails": json.loads(site.employmentDetails) if hasattr(site, 'employmentDetails') and site.employmentDetails else [],  # type: ignore[arg-type]
+        "shiftAssignments": json.loads(site.shiftAssignments) if hasattr(site, 'shiftAssignments') and site.shiftAssignments else [],  # type: ignore[arg-type]
         "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],  # type: ignore[arg-type]
         "isActive": site.isActive,
         "createdAt": site.createdAt
@@ -2517,3 +2533,59 @@ async def delete_service(service_id: str, db: AsyncSession = Depends(get_db)):
     await db.delete(service)
     await db.commit()
     return {"message": "Service deleted"}
+
+
+# ========== SHIFT ENDPOINTS ==========
+
+@router.get("/shifts", response_model=List[ShiftResponse])
+async def get_shifts(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Shift).order_by(Shift.shiftCode))
+    return result.scalars().all()
+
+
+@router.post("/shifts", response_model=ShiftResponse, status_code=201)
+async def create_shift(shift: ShiftCreate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Shift).where(Shift.shiftCode == shift.shiftCode))
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="รหัสกะซ้ำ")
+    
+    new_shift = Shift(**shift.model_dump())
+    db.add(new_shift)
+    await db.commit()
+    await db.refresh(new_shift)
+    return new_shift
+
+
+@router.put("/shifts/{shift_id}", response_model=ShiftResponse)
+async def update_shift(shift_id: int, shift: ShiftUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Shift).where(Shift.id == shift_id))
+    db_shift = result.scalar_one_or_none()
+    if not db_shift:
+        raise HTTPException(status_code=404, detail="ไม่พบข้อมูลกะ")
+    
+    if shift.shiftCode and shift.shiftCode != db_shift.shiftCode:
+        result = await db.execute(select(Shift).where(Shift.shiftCode == shift.shiftCode))
+        if result.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="รหัสกะซ้ำ")
+        db_shift.shiftCode = shift.shiftCode
+    
+    if shift.name is not None:
+        db_shift.name = shift.name
+    if shift.isActive is not None:
+        db_shift.isActive = shift.isActive
+    
+    await db.commit()
+    await db.refresh(db_shift)
+    return db_shift
+
+
+@router.delete("/shifts/{shift_id}")
+async def delete_shift(shift_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Shift).where(Shift.id == shift_id))
+    shift = result.scalar_one_or_none()
+    if not shift:
+        raise HTTPException(status_code=404, detail="ไม่พบข้อมูลกะ")
+    
+    await db.delete(shift)
+    await db.commit()
+    return {"message": "ลบข้อมูลกะสำเร็จ"}

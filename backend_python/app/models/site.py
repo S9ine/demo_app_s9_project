@@ -32,6 +32,9 @@ class Site(Base):
     # ข้อมูลการจ้าง (JSON Array)
     employmentDetails = Column(Text, nullable=True)  # JSON string: [{position, quantity, hiringRate, diligenceBonus, sevenDayBonus, pointBonus, remarks}]
     
+    # ข้อมูลกะงาน (JSON Array)
+    shiftAssignments = Column(Text, nullable=True)  # JSON string: [{shiftId, shiftCode, shiftName, numberOfPeople}]
+    
     # เก่า (deprecated แต่ยังเก็บไว้ backward compatible)
     contractedServices = Column(Text, nullable=True)  # JSON string
     
