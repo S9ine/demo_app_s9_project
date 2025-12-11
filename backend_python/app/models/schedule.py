@@ -20,15 +20,13 @@ class Schedule(Base):
     siteId = Column(Integer, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, index=True)
     siteName = Column(String(255), nullable=False, comment="ชื่อหน่วยงาน (เก็บไว้เพื่อความเร็ว)")
     
-    # ข้อมูลตารางงาน (JSON format)
-    # Structure: {
-    #   "day": [
-    #     {"id": guardId, "firstName": "...", "lastName": "...", "position": "...", 
-    #      "dailyIncome": 500, "payoutRate": 400, ...}
-    #   ],
-    #   "night": [...]
-    # }
-    shifts = Column(Text, nullable=False, comment="ข้อมูลกะงาน (JSON)")
+    # ความสัมพันธ์กับ shifts (normalized)
+    shifts = relationship(
+        "ScheduleShift",
+        backref="schedule",
+        cascade="all, delete-orphan",
+        lazy="joined"
+    )
     
     # Statistics (เก็บไว้เพื่อ query ง่าย)
     totalGuardsDay = Column(Integer, default=0, comment="จำนวนพนักงานกะกลางวัน")
@@ -44,5 +42,26 @@ class Schedule(Base):
     # Remarks
     remarks = Column(Text, nullable=True, comment="หมายเหตุ")
 
+
     def __repr__(self):
         return f"<Schedule(id={self.id}, date={self.scheduleDate}, site={self.siteName})>"
+
+
+# ตารางลูก: รายละเอียดแต่ละกะ/แต่ละคน
+from sqlalchemy.orm import relationship
+
+class ScheduleShift(Base):
+    __tablename__ = "schedule_shifts"
+    id = Column(Integer, primary_key=True, index=True)
+    schedule_id = Column(Integer, ForeignKey("schedules.id", ondelete="CASCADE"), nullable=False, index=True)
+    shift_type = Column(String(20), nullable=False)  # 'day', 'night', etc.
+    staff_id = Column(Integer, ForeignKey("staff.id"), nullable=False, index=True)
+    staff_name = Column(String(255))
+    position = Column(String(255))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # ความสัมพันธ์กับตารางหลัก (ถ้าต้องการ)
+    # schedule = relationship("Schedule", backref="shift_details")
+
+    def __repr__(self):
+        return f"<ScheduleShift(id={self.id}, schedule_id={self.schedule_id}, staff_id={self.staff_id}, shift={self.shift_type})>"
