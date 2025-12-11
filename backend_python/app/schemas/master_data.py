@@ -390,10 +390,94 @@ class GuardResponse(BaseModel):
     createdAt: Optional[datetime] = None
 
 
-# Staff uses same schemas as Guard
-StaffCreate = GuardCreate
-StaffUpdate = GuardUpdate
-StaffResponse = GuardResponse
+# Staff uses different schemas from Guard
+class StaffCreate(BaseModel):
+    # ข้อมูลส่วนตัว
+    title: Optional[str] = Field(None, description="คำนำหน้า")
+    firstName: str = Field(..., min_length=1, description="ชื่อ")
+    lastName: str = Field(..., min_length=1, description="นามสกุล")
+    idCardNumber: Optional[str] = Field(None, description="เลขที่บัตรประชาชน 13 หลัก")
+    birthDate: Optional[date] = Field(None, description="วันเกิด")
+    
+    # ข้อมูลติดต่อ
+    phone: Optional[str] = Field(None, description="เบอร์โทรศัพท์")
+    email: Optional[str] = Field(None, description="อีเมล")
+    address: Optional[str] = Field(None, description="ที่อยู่")
+    
+    # ข้อมูลการทำงาน
+    position: Optional[str] = Field(None, description="ตำแหน่งงาน")
+    department: Optional[str] = Field(None, description="แผนก")
+    startDate: Optional[date] = Field(None, description="วันที่เริ่มงาน")
+    
+    # ข้อมูลเงินเดือนและธนาคาร
+    salary: Optional[Decimal] = Field(None, description="เงินเดือน")
+    bankAccountNo: Optional[str] = Field(None, description="เลขที่บัญชี")
+    bankCode: Optional[str] = Field(None, description="รหัสธนาคาร")
+    
+    # ผู้ติดต่อฉุกเฉิน
+    emergencyContactName: Optional[str] = Field(None, description="ชื่อบุคคลที่ติดต่อได้ในกรณีฉุกเฉิน")
+    emergencyContactPhone: Optional[str] = Field(None, description="เบอร์โทรศัพท์บุคคลฉุกเฉิน")
+    emergencyContactRelation: Optional[str] = Field(None, description="ความสัมพันธ์กับบุคคลฉุกเฉิน")
+    
+    isActive: bool = True
+
+
+class StaffUpdate(BaseModel):
+    staffId: Optional[str] = None
+    title: Optional[str] = None
+    firstName: Optional[str] = None
+    lastName: Optional[str] = None
+    idCardNumber: Optional[str] = None
+    birthDate: Optional[date] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    position: Optional[str] = None
+    department: Optional[str] = None
+    startDate: Optional[date] = None
+    salary: Optional[Decimal] = None
+    bankAccountNo: Optional[str] = None
+    bankCode: Optional[str] = None
+    emergencyContactName: Optional[str] = None
+    emergencyContactPhone: Optional[str] = None
+    emergencyContactRelation: Optional[str] = None
+    isActive: Optional[bool] = None
+
+    @field_validator('staffId')
+    @classmethod
+    def staff_id_no_spaces(cls, v: Optional[str]) -> Optional[str]:
+        """Validate that staff ID contains no spaces"""
+        if v is None:
+            return v
+        if ' ' in v:
+            raise ValueError('รหัสพนักงานต้องไม่มีช่องว่าง (กรุณาใช้ - หรือ _ แทน)')
+        if not re.match(r'^[\w\-]+$', v):
+            raise ValueError('รหัสพนักงานต้องเป็นตัวอักษร ตัวเลข - หรือ _ เท่านั้น')
+        return v
+
+
+class StaffResponse(BaseModel):
+    id: str
+    staffId: str
+    title: Optional[str] = None
+    firstName: str
+    lastName: str
+    idCardNumber: Optional[str] = None
+    birthDate: Optional[date] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+    position: Optional[str] = None
+    department: Optional[str] = None
+    startDate: Optional[date] = None
+    salary: Optional[Decimal] = None
+    bankAccountNo: Optional[str] = None
+    bankCode: Optional[str] = None
+    emergencyContactName: Optional[str] = None
+    emergencyContactPhone: Optional[str] = None
+    emergencyContactRelation: Optional[str] = None
+    isActive: bool
+    createdAt: Optional[datetime] = None
 
 
 # ========== BANK SCHEMAS ==========

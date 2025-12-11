@@ -36,12 +36,33 @@ export default function StaffList() {
             
             setStaff(response.data.map(s => ({
                 ...s,
-                staffId: s.guardId, // Backend ใช้ฟิลด์ guardId แทน staffId ในบางโมเดล (Reuse logic)
+                staffId: s.guardId, // Backend uses guardId field
+                // Personal info
+                title: s.title || 'นาย',
+                firstName: s.firstName || '',
+                lastName: s.lastName || '',
+                idCardNumber: s.idCardNumber || '',
+                birthDate: s.birthDate || '',
+                // Contact
+                phone: s.phone || '',
+                email: s.email || '',
+                address: s.address || '',
+                // Work
                 position: s.position || '',
                 department: s.department || '',
-                title: 'นาย', // Mock data
+                startDate: s.startDate || '',
+                // Salary & Bank
+                salary: s.salary || '',
+                bankAccountNo: s.bankAccountNo || '',
+                bankCode: s.bankCode || '',
+                bankName: banks.find(b => b.code === s.bankCode)?.name || '',
+                // Emergency Contact
+                emergencyContactName: s.emergencyContactName || '',
+                emergencyContactPhone: s.emergencyContactPhone || '',
+                emergencyContactRelation: s.emergencyContactRelation || '',
+                // Status
                 status: s.isActive ? 'Active' : 'Resigned',
-                bankName: banks.find(b => b.code === s.bankCode)?.name || s.bankCode || ''
+                createdAt: s.createdAt
             })));
         } catch (error) {
             console.error('Error fetching staff:', error);
@@ -69,34 +90,42 @@ export default function StaffList() {
     const handleSaveStaff = async (staffData) => {
         try {
             const payload = {
-                guardId: staffData.staffId,
+                // ข้อมูลส่วนตัว
+                title: staffData.title || null,
                 firstName: staffData.firstName,
                 lastName: staffData.lastName,
                 idCardNumber: staffData.idCardNumber || null,
-                phone: staffData.phone,
-                address: staffData.address,
-                position: staffData.position || null,
-                department: staffData.department || null,
-                
-                // ข้อมูลวันที่
-                startDate: staffData.startDate || null,
                 birthDate: staffData.birthDate || null,
                 
-                // ข้อมูลเงินเดือน
-                salary: staffData.salary ? parseFloat(staffData.salary) : null,
-                salaryType: staffData.salaryType || null,
+                // ข้อมูลติดต่อ
+                phone: staffData.phone || null,
+                email: staffData.email || null,
+                address: staffData.address || null,
                 
-                // ข้อมูลการรับเงิน
-                paymentMethod: staffData.paymentMethod || null,
-                bankAccountNo: staffData.bankAccountNo || "",
-                bankCode: staffData.bankCode || "",
+                // ข้อมูลการทำงาน
+                position: staffData.position || null,
+                department: staffData.department || null,
+                startDate: staffData.startDate || null,
+                
+                // เงินเดือนและธนาคาร
+                salary: staffData.salary ? parseFloat(staffData.salary) : null,
+                bankAccountNo: staffData.bankAccountNo || null,
+                bankCode: banks.find(b => b.name === staffData.bankName)?.code || null,
+                
+                // ผู้ติดต่อฉุกเฉิน
+                emergencyContactName: staffData.emergencyContactName || null,
+                emergencyContactPhone: staffData.emergencyContactPhone || null,
+                emergencyContactRelation: staffData.emergencyContactRelation || null,
                 
                 isActive: staffData.status === 'Active',
             };
 
             if (staffData.id) {
+                // Update - send guardId for reference
+                payload.guardId = staffData.staffId;
                 await api.put(`/staff/${staffData.id}`, payload);
             } else {
+                // Create - backend will auto-generate staffId
                 await api.post('/staff', payload);
             }
             fetchStaff();
