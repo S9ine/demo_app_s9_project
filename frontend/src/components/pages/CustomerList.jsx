@@ -188,6 +188,9 @@ export default function CustomerList() {
         alert(`📊 Export ข้อมูล ${dataToExport.length} รายการเรียบร้อยแล้ว`);
     };
 
+    // เพิ่ม state สำหรับยืนยัน Export
+    const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
+
     return (
         <div>
             <div className="flex justify-between items-center mb-6 gap-4">
@@ -220,7 +223,7 @@ export default function CustomerList() {
                 {/* Action Buttons */}
                 <div className="flex space-x-2">
                     <button
-                        onClick={handleExportExcel}
+                        onClick={() => setIsExportConfirmOpen(true)}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center"
                         title={selectedIds.length > 0 ? `Export ${selectedIds.length} รายการที่เลือก` : 'Export ทั้งหมด'}
                     >
@@ -380,6 +383,17 @@ export default function CustomerList() {
                 onConfirm={handleBulkDelete}
                 title="ยืนยันการลบข้อมูลหลายรายการ"
                 message={`คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลลูกค้า ${selectedIds.length} รายการ? การกระทำนี้ไม่สามารถย้อนกลับได้`}
+            />
+
+            <ConfirmationModal
+                isOpen={isExportConfirmOpen}
+                onClose={() => setIsExportConfirmOpen(false)}
+                onConfirm={() => {
+                    setIsExportConfirmOpen(false);
+                    handleExportExcel();
+                }}
+                title="ยืนยันการ Export ข้อมูล"
+                message={`คุณต้องการ Export ข้อมูลลูกค้า${selectedIds.length > 0 ? ` ${selectedIds.length} รายการที่เลือก` : 'ทั้งหมด'} ใช่หรือไม่?`}
             />
         </div>
     );
