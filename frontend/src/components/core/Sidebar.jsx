@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     ChevronDown, Home, Users, Briefcase, UserCheck, FileText, Calendar, Settings, X, Menu, Search,
     Building2, MapPin, Shield, UsersRound, Receipt, Package, Wrench, DollarSign,
-    ShoppingBag, HeartHandshake, LayoutGrid, Database, History
+    ShoppingBag, HeartHandshake, LayoutGrid, Database, History, Clock
 } from 'lucide-react';
 
 export default function Sidebar({ setActivePage, activePage, userPermissions, userRole }) {
@@ -73,6 +73,7 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
         { id: 'scheduler', icon: Calendar, label: 'ตารางงาน', color: 'from-violet-500 to-violet-600' },
         { id: 'audit-logs', icon: History, label: 'ประวัติการแก้ไข', color: 'from-indigo-500 to-indigo-600', adminOnly: true },
         { id: 'master-data', icon: Database, label: 'ข้อมูลหลัก', color: 'from-slate-500 to-slate-600', adminOnly: true },
+        { id: 'shift-list', icon: Clock, label: 'กะงาน', color: 'from-amber-500 to-amber-600', adminOnly: true },
         { id: 'settings', icon: Settings, label: 'ตั้งค่าผู้ใช้', color: 'from-gray-500 to-gray-600', adminOnly: true },
     ];
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
 import ConfirmationModal from '../modals/ConfirmationModal';
-import { Building2, PlusCircle, Edit, Trash2, Shield } from 'lucide-react';
+import { Building2, PlusCircle, Edit, Trash2, Shield, Clock } from 'lucide-react';
 
 // Form Modal สำหรับ 'เพิ่ม' หรือ 'แก้ไข' ข้อมูลธนาคาร
 function BankFormModal({ isOpen, onClose, onSave, bank }) {
@@ -62,14 +62,154 @@ function BankFormModal({ isOpen, onClose, onSave, bank }) {
     );
 }
 
+// Form Modal สำหรับจัดการข้อมูลกะ
+function ShiftFormModal({ isOpen, onClose, onSave, shift }) {
+    const [formData, setFormData] = useState({ 
+        shiftCode: '', 
+        name: '', 
+        defaultStartTime: '08:00', 
+        defaultEndTime: '20:00',
+        colorCode: '#3B82F6',
+        icon: '⏰'
+    });
+
+    useEffect(() => {
+        if (shift) {
+            setFormData({
+                shiftCode: shift.shiftCode || '',
+                name: shift.name || '',
+                defaultStartTime: shift.defaultStartTime || '08:00',
+                defaultEndTime: shift.defaultEndTime || '20:00',
+                colorCode: shift.colorCode || '#3B82F6',
+                icon: shift.icon || '⏰'
+            });
+        } else {
+            setFormData({ 
+                shiftCode: '', 
+                name: '', 
+                defaultStartTime: '08:00', 
+                defaultEndTime: '20:00',
+                colorCode: '#3B82F6',
+                icon: '⏰'
+            });
+        }
+    }, [shift, isOpen]);
+
+    if (!isOpen) return null;
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave({ id: shift?.id, ...formData });
+        onClose();
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+                <form onSubmit={handleSubmit}>
+                    <h2 className="text-xl font-bold mb-4">{shift ? 'แก้ไขข้อมูลกะ' : 'เพิ่มกะใหม่'}</h2>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">รหัสกะ</label>
+                            <input
+                                type="text"
+                                name="shiftCode"
+                                value={formData.shiftCode}
+                                onChange={handleChange}
+                                placeholder="เช่น K01, K02"
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+                                required
+                                disabled={!!shift}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">ชื่อกะ</label>
+                            <input 
+                                type="text" 
+                                name="name" 
+                                value={formData.name} 
+                                onChange={handleChange} 
+                                placeholder="เช่น กะเช้า, กะดึก"
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" 
+                                required 
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">เวลาเริ่ม</label>
+                                <input 
+                                    type="time" 
+                                    name="defaultStartTime" 
+                                    value={formData.defaultStartTime} 
+                                    onChange={handleChange} 
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">เวลาสิ้นสุด</label>
+                                <input 
+                                    type="time" 
+                                    name="defaultEndTime" 
+                                    value={formData.defaultEndTime} 
+                                    onChange={handleChange} 
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" 
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">สี</label>
+                                <input 
+                                    type="color" 
+                                    name="colorCode" 
+                                    value={formData.colorCode} 
+                                    onChange={handleChange} 
+                                    className="mt-1 block w-full h-10 border border-gray-300 rounded-md" 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">ไอคอน</label>
+                                <input 
+                                    type="text" 
+                                    name="icon" 
+                                    value={formData.icon} 
+                                    onChange={handleChange} 
+                                    placeholder="🌅"
+                                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-center text-2xl" 
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="mt-6 flex justify-end space-x-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">ยกเลิก</button>
+                        <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors">บันทึก</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 export default function MasterDataPage({ user }) {
     // State declarations must come before any conditional returns
     const [banks, setBanks] = useState([]);
+    const [shifts, setShifts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBank, setEditingBank] = useState(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [bankToDelete, setBankToDelete] = useState(null);
+    
+    // Shift states
+    const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+    const [editingShift, setEditingShift] = useState(null);
+    const [isShiftConfirmOpen, setIsShiftConfirmOpen] = useState(false);
+    const [shiftToDelete, setShiftToDelete] = useState(null);
 
     const fetchBanks = async () => {
         setIsLoading(true);
@@ -83,8 +223,18 @@ export default function MasterDataPage({ user }) {
         }
     };
 
+    const fetchShifts = async () => {
+        try {
+            const response = await api.get('/shifts');
+            setShifts(response.data);
+        } catch (error) {
+            console.error('Error fetching shifts:', error);
+        }
+    };
+
     useEffect(() => {
         fetchBanks();
+        fetchShifts();
     }, []);
 
     // ตรวจสอบว่าเป็น Admin หรือไม่ (after hooks)
@@ -214,12 +364,6 @@ export default function MasterDataPage({ user }) {
                     </div>
                 </div>
                 
-                {/* ส่วน Placeholder สำหรับฟีเจอร์ในอนาคต */}
-                <div className="bg-white p-6 rounded-lg shadow-md flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
-                    <Building2 className="w-16 h-16 text-gray-300 mb-3" />
-                    <h2 className="text-xl font-semibold text-gray-400">จัดการคำนำหน้าชื่อ</h2>
-                    <p className="text-gray-400 mt-2">เร็วๆ นี้</p>
-                </div>
             </div>
 
             <BankFormModal 

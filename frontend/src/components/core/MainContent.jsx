@@ -11,6 +11,7 @@ import StaffList from '../pages/StaffList';
 import DailyAdvancePage from '../pages/DailyAdvancePage';
 import ProductList from '../pages/ProductList';
 import AuditLogsPage from '../pages/AuditLogsPage';
+import ShiftList from '../pages/ShiftList';
 
 //vvvv <-- 1. รับ user prop เข้ามาตรงนี้
 
@@ -33,6 +34,7 @@ export default function MainContent({ activePage, setActivePage, user }) {
             case 'scheduler': return <Scheduler user={user} />;
             case 'audit-logs': return <AuditLogsPage user={user} />;
             case 'master-data': return <MasterDataPage user={user} />;
+            case 'shift-list': return <ShiftList user={user} />;
             case 'settings': return <SettingsPage user={user} />;
 
             default: return <div className="p-6"><h1 className="text-2xl font-semibold">{activePage}</h1><p>เนื้อหาของหน้านี้ยังไม่ถูกสร้าง</p></div>;
