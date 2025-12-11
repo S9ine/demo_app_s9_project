@@ -99,9 +99,52 @@ export default function EntityHistoryModal({ isOpen, onClose, entityType, entity
             'bankCode': 'รหัสธนาคาร',
             'position': 'ตำแหน่ง',
             'department': 'แผนก',
-            'salary': 'เงินเดือน'
+            'salary': 'เงินเดือน',
+            'employmentDetails': 'ข้ออมูลการจ้าง'
         };
         return fieldMap[field] || field;
+    };
+
+    const formatValue = (key, value) => {
+        if (value === null || value === undefined) return '-';
+        
+        // ถ้าเป็น employmentDetails (ข้อมูลการจ้าง)
+        if (key === 'employmentDetails' && Array.isArray(value)) {
+            if (value.length === 0) return 'ไม่มีข้อมูล';
+            return (
+                <div className="space-y-2 mt-2">
+                    {value.map((emp, idx) => (
+                        <div key={idx} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                            <div className="font-semibold text-indigo-700 mb-1">
+                                {idx + 1}. {emp.position || '-'}
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <div><span className="text-gray-600">จำนวน:</span> {emp.quantity || 0} คน</div>
+                                <div><span className="text-gray-600">อัตรา:</span> {emp.rate || 0} บาท</div>
+                                <div><span className="text-gray-600">เบี้ยตำแหน่ง:</span> {emp.positionAllowance || 0} บาท</div>
+                                <div><span className="text-gray-600">เบี้ยอื่นๆ:</span> {emp.otherAllowance || 0} บาท</div>
+                                <div className="col-span-2"><span className="text-gray-600">รายได้ต่อวัน:</span> <span className="font-semibold text-green-600">{emp.dailyIncome || 0}</span> บาท</div>
+                            </div>
+                        </div>
+                    ))}
+                    <div className="text-sm font-semibold text-gray-700 mt-2">
+                        รวม {value.length} ตำแหน่ง
+                    </div>
+                </div>
+            );
+        }
+        
+        // ถ้าเป็น boolean
+        if (typeof value === 'boolean') {
+            return value ? 'ใช่' : 'ไม่ใช่';
+        }
+        
+        // ถ้าเป็น array หรือ object อื่นๆ
+        if (typeof value === 'object') {
+            return JSON.stringify(value, null, 2);
+        }
+        
+        return value.toString();
     };
 
     if (!isOpen) return null;
@@ -272,7 +315,7 @@ export default function EntityHistoryModal({ isOpen, onClose, entityType, entity
                                                                                             {formatFieldName(key)}:
                                                                                         </span>{' '}
                                                                                         <span className="text-red-700">
-                                                                                            {value?.toString() || '-'}
+                                                                                            {formatValue(key, value)}
                                                                                         </span>
                                                                                     </div>
                                                                                 ))}
@@ -295,7 +338,7 @@ export default function EntityHistoryModal({ isOpen, onClose, entityType, entity
                                                                                             {formatFieldName(key)}:
                                                                                         </span>{' '}
                                                                                         <span className="text-green-700">
-                                                                                            {value?.toString() || '-'}
+                                                                                            {formatValue(key, value)}
                                                                                         </span>
                                                                                     </div>
                                                                                 ))}

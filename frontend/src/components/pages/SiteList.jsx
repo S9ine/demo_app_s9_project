@@ -4,7 +4,8 @@ import api from '../../config/api';
 import SiteFormModal from '../modals/SiteFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import GenericExcelImportModal from '../modals/GenericExcelImportModal';
-import { PlusCircle, Edit, Trash2, Download, Search, X, Upload } from 'lucide-react';
+import EntityHistoryModal from '../modals/EntityHistoryModal';
+import { PlusCircle, Edit, Trash2, Download, Search, X, Upload, History } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 import * as XLSX from 'xlsx';
 
@@ -17,6 +18,10 @@ export default function SiteList() {
     const [siteToDelete, setSiteToDelete] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    // History Modal States
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [selectedSiteForHistory, setSelectedSiteForHistory] = useState(null);
 
     // Selection States
     const [selectedIds, setSelectedIds] = useState([]);
@@ -301,9 +306,10 @@ export default function SiteList() {
                                 <th className="text-left p-3 font-semibold" style={{width: '120px'}}>รหัสหน่วยงาน</th>
                                 <th className="text-left p-3 font-semibold" style={{width: '200px'}}>ชื่อหน่วยงาน</th>
                                 <th className="text-left p-3 font-semibold" style={{width: '180px'}}>ลูกค้า</th>
-                                <th className="text-left p-3 font-semibold" style={{width: '200px'}}>ที่อยู่</th>
+                                <th className="text-left p-3 font-semibold" style={{width: '120px'}}>ข้อมูลการจ้าง</th>
+                                <th className="text-left p-3 font-semibold" style={{width: '150px'}}>รายได้-ต้นทุน-กำไร</th>
                                 <th className="text-left p-3 font-semibold" style={{width: '100px'}}>สถานะ</th>
-                                <th className="text-left p-3 font-semibold" style={{width: '100px'}}>การกระทำ</th>
+                                <th className="text-left p-3 font-semibold" style={{width: '120px'}}>การกระทำ</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -325,8 +331,80 @@ export default function SiteList() {
                                             <div className="text-gray-500 text-xs truncate">{s.customerCode || ''}</div>
                                         </div>
                                     </td>
-                                    <td className="p-3 text-sm truncate" title={s.district && s.province ? `${s.district}, ${s.province}` : (s.address || '-')}>
-                                        {s.district && s.province ? `${s.district}, ${s.province}` : (s.address ? s.address.substring(0, 30) + '...' : '-')}
+                                    <td className="p-3 text-sm">
+                                        {s.employmentDetails && s.employmentDetails.length > 0 ? (
+                                            <div className="space-y-1">
+                                                <div className="font-semibold text-blue-600">
+                                                    รวม {s.employmentDetails.reduce((sum, emp) => sum + (emp.quantity || 0), 0)} คน
+                                                </div>
+                                                <div className="text-xs text-gray-600 space-y-0.5">
+                                                    {s.employmentDetails.map((emp, idx) => (
+                                                        <div key={idx} className="truncate" title={`${emp.position}: ${emp.quantity} คน`}>
+                                                            {emp.position}: {emp.quantity} คน
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <span className="text-gray-400">ไม่มีข้อมูล</span>
+                                        )}
+                                    </td>
+                                    <td className="p-3 text-sm">
+                                        {(() => {
+                                            if (!s.employmentDetails || s.employmentDetails.length === 0) {
+                                                return <span className="text-gray-400">-</span>;
+                                            }
+                                            
+                                            // คำนวณรายได้จากลูกค้า (ค่าจ้างที่ลูกค้าจ้างเรา)
+                                            const totalRevenue = s.employmentDetails.reduce((sum, emp) => {
+                                                // รายได้ = ราคาจ้าง × จำนวน
+                                                const hiringRate = parseFloat(emp.hiringRate || 0);
+                                                const quantity = parseFloat(emp.quantity || 0);
+                                                return sum + (hiringRate * quantity);
+                                            }, 0);
+                                            
+                                            // คำนวณค่าใช้จ่ายให้รปภ (ต้นทุนที่เราจ่ายให้รปภ)
+                                            const totalCost = s.employmentDetails.reduce((sum, emp) => {
+                                                // ต้นทุน = (dailyIncome × workingDays) + positionAllowance + diligenceBonus + sevenDayBonus + pointBonus + otherAllowance
+                                                const dailyIncome = parseFloat(emp.dailyIncome || 0);
+                                                const workingDays = parseFloat(emp.workingDays || 30);
+                                                const positionAllowance = parseFloat(emp.positionAllowance || 0);
+                                                const diligenceBonus = parseFloat(emp.diligenceBonus || 0);
+                                                const sevenDayBonus = parseFloat(emp.sevenDayBonus || 0);
+                                                const pointBonus = parseFloat(emp.pointBonus || 0);
+                                                const otherAllowance = parseFloat(emp.otherAllowance || 0);
+                                                const quantity = parseFloat(emp.quantity || 0);
+                                                
+                                                const costPerPerson = (dailyIncome * workingDays) + positionAllowance + diligenceBonus + sevenDayBonus + pointBonus + otherAllowance;
+                                                return sum + (costPerPerson * quantity);
+                                            }, 0);
+                                            
+                                            // คำนวณกำไร = รายได้จากลูกค้า - ค่าใช้จ่ายให้รปภ
+                                            const profit = totalRevenue - totalCost;
+                                            
+                                            return (
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2 text-xs">
+                                                        <span className="text-gray-600">รายได้/เดือน:</span>
+                                                        <span className="font-semibold text-blue-600">
+                                                            ฿{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-xs">
+                                                        <span className="text-gray-600">ต้นทุน/เดือน:</span>
+                                                        <span className="font-semibold text-orange-600">
+                                                            ฿{totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-xs border-t pt-1">
+                                                        <span className="text-gray-600">กำไร/เดือน:</span>
+                                                        <span className={`font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                            ฿{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="p-3">
                                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${s.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -334,6 +412,20 @@ export default function SiteList() {
                                         </span>
                                     </td>
                                     <td className="p-3 flex space-x-2">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedSiteForHistory({
+                                                    id: s.id,
+                                                    name: s.name,
+                                                    code: s.siteCode
+                                                });
+                                                setIsHistoryModalOpen(true);
+                                            }}
+                                            className="text-purple-500 hover:text-purple-700"
+                                            title="ดูประวัติ"
+                                        >
+                                            <History className="w-5 h-5" />
+                                        </button>
                                         <button onClick={() => handleOpenModal(s)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
                                         <button onClick={() => openDeleteConfirm(s)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
                                     </td>
@@ -388,6 +480,17 @@ export default function SiteList() {
                 }}
                 title="ยืนยันการ Export ข้อมูล"
                 message={`คุณต้องการ Export ข้อมูลหน่วยงาน${selectedIds.length > 0 ? ` ${selectedIds.length} รายการที่เลือก` : 'ทั้งหมด'} ใช่หรือไม่?`}
+            />
+
+            <EntityHistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => {
+                    setIsHistoryModalOpen(false);
+                    setSelectedSiteForHistory(null);
+                }}
+                entityType="sites"
+                entityId={selectedSiteForHistory?.code}
+                entityName={selectedSiteForHistory?.name}
             />
 
             <GenericExcelImportModal

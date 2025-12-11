@@ -120,6 +120,7 @@ class EmploymentDetail(BaseModel):
     """ข้อมูลการจ้าง"""
     position: str = Field(..., description="ชื่อ/ตำแหน่ง")
     quantity: int = Field(..., description="จำนวน", ge=0)
+    workingDays: int = Field(30, description="วันทำงาน/เดือน", ge=1, le=31)
     dailyIncome: float = Field(0.0, description="รายได้รายวัน (บาท/วัน)", ge=0)
     hiringRate: float = Field(..., description="ราคาจ้าง", ge=0)
     positionAllowance: float = Field(0.0, description="ค่าตำแหน่ง", ge=0)

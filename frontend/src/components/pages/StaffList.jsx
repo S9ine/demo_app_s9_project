@@ -4,7 +4,8 @@ import api from '../../config/api';
 import StaffFormModal from '../modals/StaffFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import GenericExcelImportModal from '../modals/GenericExcelImportModal';
-import { PlusCircle, Edit, Trash2, Download, Search, X, Upload } from 'lucide-react';
+import EntityHistoryModal from '../modals/EntityHistoryModal';
+import { PlusCircle, Edit, Trash2, Download, Search, X, Upload, History } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 import { useBanks } from '../../hooks/useBanks';
 import * as XLSX from 'xlsx';
@@ -18,6 +19,10 @@ export default function StaffList() {
     const [selectedStaff, setSelectedStaff] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+
+    // History Modal States
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [selectedStaffForHistory, setSelectedStaffForHistory] = useState(null);
 
     // Selection States
     const [selectedIds, setSelectedIds] = useState([]);
@@ -36,7 +41,8 @@ export default function StaffList() {
             
             setStaff(response.data.map(s => ({
                 ...s,
-                staffId: s.guardId, // Backend uses guardId field
+                // staffId is already correct from API
+                staffId: s.staffId,
                 // Personal info
                 title: s.title || 'นาย',
                 firstName: s.firstName || '',
@@ -369,6 +375,20 @@ export default function StaffList() {
                                         </span>
                                     </td>
                                     <td className="p-3 flex space-x-2">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedStaffForHistory({
+                                                    id: s.id,
+                                                    name: `${s.title}${s.firstName} ${s.lastName}`,
+                                                    code: s.staffId
+                                                });
+                                                setIsHistoryModalOpen(true);
+                                            }}
+                                            className="text-purple-500 hover:text-purple-700"
+                                            title="ดูประวัติ"
+                                        >
+                                            <History className="w-5 h-5" />
+                                        </button>
                                         <button onClick={() => handleOpenModal(s)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
                                         <button onClick={() => openDeleteConfirm(s)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
                                     </td>
@@ -423,6 +443,17 @@ export default function StaffList() {
                 }}
                 title="ยืนยันการ Export ข้อมูล"
                 message={`คุณต้องการ Export ข้อมูลพนักงานภายใน${selectedIds.length > 0 ? ` ${selectedIds.length} รายการที่เลือก` : 'ทั้งหมด'} ใช่หรือไม่?`}
+            />
+
+            <EntityHistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => {
+                    setIsHistoryModalOpen(false);
+                    setSelectedStaffForHistory(null);
+                }}
+                entityType="staff"
+                entityId={selectedStaffForHistory?.code}
+                entityName={selectedStaffForHistory?.name}
             />
 
             <GenericExcelImportModal

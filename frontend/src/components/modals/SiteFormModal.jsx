@@ -522,7 +522,7 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                             </button>
                                         </div>
                                         
-                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3">
+                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-3">
                                             <div>
                                                 <label className="block text-xs font-medium text-gray-600 mb-1">จำนวน</label>
                                                 <input
@@ -531,6 +531,17 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                                     onChange={(e) => handleEmploymentChange(index, 'quantity', parseInt(e.target.value) || 0)}
                                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                     min="0"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">วันทำงาน</label>
+                                                <input
+                                                    type="number"
+                                                    value={detail.workingDays || 30}
+                                                    onChange={(e) => handleEmploymentChange(index, 'workingDays', parseInt(e.target.value) || 30)}
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    min="1"
+                                                    max="31"
                                                 />
                                             </div>
                                             <div>
@@ -611,26 +622,26 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                                     step="0.01"
                                                 />
                                             </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">รวม/คน</label>
-                                                <div className="px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-right font-bold text-green-700">
-                                                    ฿{((detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0)).toLocaleString()}
-                                                </div>
-                                            </div>
                                         </div>
                                         
-                                        {/* แสดงกำไรต่อคนต่อวัน */}
+                                        {/* แสดงต้นทุนต่อตำแหน่งและรวม */}
                                         {detail.dailyIncome > 0 && (
-                                            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                                <div className="flex justify-between items-center text-sm">
-                                                    <span className="text-gray-600">กำไร/คน/วัน:</span>
-                                                    <span className={`font-bold ${
-                                                        (detail.dailyIncome - ((detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0))) >= 0 
-                                                            ? 'text-green-600' 
-                                                            : 'text-red-600'
-                                                    }`}>
-                                                        ฿{((detail.dailyIncome || 0) - ((detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0))).toLocaleString()}
-                                                    </span>
+                                            <div className="mt-2 space-y-2">
+                                                <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-gray-600">ต้นทุน/ตำแหน่ง:</span>
+                                                        <span className="font-bold text-orange-600">
+                                                            ฿{(((detail.dailyIncome || 0) * (detail.workingDays || 30)) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0)).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-gray-600">ต้นทุนรวม ({detail.quantity || 0} คน):</span>
+                                                        <span className="font-bold text-green-700">
+                                                            ฿{((((detail.dailyIncome || 0) * (detail.workingDays || 30)) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0)) * (detail.quantity || 0)).toLocaleString()}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
@@ -652,57 +663,6 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                     <PlusCircle className="w-12 h-12 mx-auto text-gray-400 mb-3" />
                                     <p className="text-gray-500 font-medium">ยังไม่มีรายการจ้าง</p>
                                     <p className="text-sm text-gray-400 mt-1">คลิกปุ่ม "เพิ่มรายการ" เพื่อเริ่มต้น</p>
-                                </div>
-                            )}
-                            
-                            {/* Grand Total Section */}
-                            {formData.employmentDetails && formData.employmentDetails.length > 0 && (
-                                <div className="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border-2 border-green-200 shadow-md">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-white rounded-lg px-4 py-2 shadow-sm">
-                                                <span className="text-sm text-gray-600">จำนวนรวม</span>
-                                                <p className="text-2xl font-bold text-gray-800">
-                                                    {formData.employmentDetails.reduce((sum, detail) => sum + (detail.quantity || 0), 0)} คน
-                                                </p>
-                                            </div>
-                                            <div className="bg-white rounded-lg px-4 py-2 shadow-sm">
-                                                <span className="text-sm text-blue-600">รายได้รวม/วัน</span>
-                                                <p className="text-2xl font-bold text-blue-700">
-                                                    ฿{formData.employmentDetails.reduce((sum, detail) => {
-                                                        return sum + ((detail.quantity || 0) * (detail.dailyIncome || 0));
-                                                    }, 0).toLocaleString()}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right space-y-2">
-                                            <div>
-                                                <span className="text-sm text-gray-600 block mb-1">ต้นทุนรวม/วัน</span>
-                                                <p className="text-3xl font-bold text-green-700">
-                                                    ฿{formData.employmentDetails.reduce((sum, detail) => {
-                                                        const totalPerPerson = (detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0);
-                                                        return sum + ((detail.quantity || 0) * totalPerPerson);
-                                                    }, 0).toLocaleString()}
-                                                </p>
-                                            </div>
-                                            <div className="pt-2 border-t-2 border-green-300">
-                                                <span className="text-sm text-gray-600 block mb-1">กำไรรวม/วัน</span>
-                                                <p className={`text-2xl font-bold ${
-                                                    (formData.employmentDetails.reduce((sum, detail) => sum + ((detail.quantity || 0) * (detail.dailyIncome || 0)), 0) -
-                                                    formData.employmentDetails.reduce((sum, detail) => {
-                                                        const totalPerPerson = (detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0);
-                                                        return sum + ((detail.quantity || 0) * totalPerPerson);
-                                                    }, 0)) >= 0 ? 'text-green-600' : 'text-red-600'
-                                                }`}>
-                                                    ฿{(formData.employmentDetails.reduce((sum, detail) => sum + ((detail.quantity || 0) * (detail.dailyIncome || 0)), 0) -
-                                                    formData.employmentDetails.reduce((sum, detail) => {
-                                                        const totalPerPerson = (detail.hiringRate || 0) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0);
-                                                        return sum + ((detail.quantity || 0) * totalPerPerson);
-                                                    }, 0)).toLocaleString()}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             )}
                         </div>

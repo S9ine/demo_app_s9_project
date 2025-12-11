@@ -979,6 +979,30 @@ async def create_site(  # type: ignore
     await db.commit()
     await db.refresh(new_site)
     
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="CREATE",
+        entity_type="sites",
+        entity_id=new_site.siteCode,
+        entity_name=f"{new_site.siteCode} - {new_site.name}",
+        description=f"สร้างข้อมูลหน่วยงาน: {new_site.siteCode} - {new_site.name}",
+        new_data={
+            "siteCode": new_site.siteCode,
+            "name": new_site.name,
+            "customerCode": new_site.customerCode,
+            "customerName": new_site.customerName,
+            "address": new_site.address,
+            "district": new_site.district,
+            "province": new_site.province,
+            "phone": new_site.phone,
+            "contactPerson": new_site.contactPerson,
+            "employmentDetails": json.loads(new_site.employmentDetails) if new_site.employmentDetails else [],
+            "isActive": new_site.isActive
+        }
+    )
+    
     return {
         "id": str(new_site.id),
         "siteCode": new_site.siteCode,
@@ -1065,25 +1089,51 @@ async def update_site(  # type: ignore
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
     
+    # Store old data for audit
+    old_data = {
+        "siteCode": site.siteCode,
+        "name": site.name,
+        "customerCode": site.customerCode,
+        "customerName": site.customerName,
+        "contractStartDate": str(site.contractStartDate) if site.contractStartDate else None,
+        "contractEndDate": str(site.contractEndDate) if site.contractEndDate else None,
+        "address": site.address,
+        "subDistrict": site.subDistrict,
+        "district": site.district,
+        "province": site.province,
+        "postalCode": site.postalCode,
+        "contactPerson": site.contactPerson,
+        "phone": site.phone,
+        "employmentDetails": json.loads(site.employmentDetails) if site.employmentDetails else [],
+        "isActive": site.isActive
+    }
+    changes = []
+    
     # Check duplicate siteCode if changed
     if site_data.siteCode is not None and site_data.siteCode != site.siteCode:
         result = await db.execute(select(Site).where(Site.siteCode == site_data.siteCode))
         if result.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="รหัสหน่วยงานซ้ำ (Site Code already exists)")
+        changes.append("siteCode")
         site.siteCode = site_data.siteCode  # type: ignore[assignment]
     
     if site_data.name is not None:
+        if site_data.name != site.name:
+            changes.append("name")
         site.name = site_data.name  # type: ignore[assignment]
     if site_data.customerId is not None:
         try:
             cid = int(site_data.customerId)
-            result = await db.execute(select(Customer).where(Customer.id == cid))
-            customer = result.scalar_one_or_none()
-            if not customer:
-                raise HTTPException(status_code=404, detail="Customer not found")
-            site.customerId = cid  # type: ignore[assignment]
-            site.customerCode = customer.code  # type: ignore[assignment]
-            site.customerName = customer.name  # type: ignore[assignment]
+            # Only update if customer ID actually changed
+            if cid != site.customerId:
+                result = await db.execute(select(Customer).where(Customer.id == cid))
+                customer = result.scalar_one_or_none()
+                if not customer:
+                    raise HTTPException(status_code=404, detail="Customer not found")
+                changes.append("customerId")
+                site.customerId = cid  # type: ignore[assignment]
+                site.customerCode = customer.code  # type: ignore[assignment]
+                site.customerName = customer.name  # type: ignore[assignment]
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid customer ID")
     
@@ -1121,17 +1171,54 @@ async def update_site(  # type: ignore
     if site_data.phone is not None:
         site.phone = site_data.phone  # type: ignore[assignment]
     if site_data.employmentDetails is not None:
-        site.employmentDetails = json.dumps([d.model_dump() for d in site_data.employmentDetails])  # type: ignore[assignment]
+        new_employment = json.dumps([d.model_dump() for d in site_data.employmentDetails])
+        old_employment = site.employmentDetails
+        if new_employment != old_employment:
+            changes.append("employmentDetails")
+        site.employmentDetails = new_employment  # type: ignore[assignment]
     if site_data.contractedServices is not None:
         site.contractedServices = json.dumps([s.model_dump() for s in site_data.contractedServices])  # type: ignore[assignment]
     if site_data.isActive is not None:
+        if site_data.isActive != site.isActive:
+            changes.append("isActive")
         site.isActive = site_data.isActive  # type: ignore[assignment]
         
     await db.commit()
     await db.refresh(site)
     
+    # Get customer info before audit log
     result = await db.execute(select(Customer).where(Customer.id == site.customerId))
     customer = result.scalar_one_or_none()
+    
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="UPDATE",
+        entity_type="sites",
+        entity_id=site.siteCode,
+        entity_name=f"{site.siteCode} - {site.name}",
+        description=f"แก้ไขข้อมูลหน่วยงาน: {site.siteCode} - {site.name}",
+        old_data=old_data,
+        new_data={
+            "siteCode": site.siteCode,
+            "name": site.name,
+            "customerCode": site.customerCode,
+            "customerName": site.customerName,
+            "contractStartDate": str(site.contractStartDate) if site.contractStartDate else None,
+            "contractEndDate": str(site.contractEndDate) if site.contractEndDate else None,
+            "address": site.address,
+            "subDistrict": site.subDistrict,
+            "district": site.district,
+            "province": site.province,
+            "postalCode": site.postalCode,
+            "contactPerson": site.contactPerson,
+            "phone": site.phone,
+            "employmentDetails": json.loads(site.employmentDetails) if site.employmentDetails else [],
+            "isActive": site.isActive
+        },
+        changes=changes if changes else None
+    )
     
     return {
         "id": str(site.id),
@@ -1173,9 +1260,37 @@ async def delete_site(
     
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
+    
+    # Store data for audit before deletion
+    site_code = site.siteCode
+    site_name = site.name
+    site_data = {
+        "siteCode": site.siteCode,
+        "name": site.name,
+        "customerCode": site.customerCode,
+        "customerName": site.customerName,
+        "address": site.address,
+        "district": site.district,
+        "province": site.province,
+        "phone": site.phone,
+        "employmentDetails": json.loads(site.employmentDetails) if site.employmentDetails else [],
+        "isActive": site.isActive
+    }
         
     await db.delete(site)
     await db.commit()
+    
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="DELETE",
+        entity_type="sites",
+        entity_id=site_code,
+        entity_name=site_name,
+        description=f"ลบหน่วยงาน: {site_code} - {site_name}",
+        old_data=site_data
+    )
     
     return {"message": "Site deleted successfully"}
 
@@ -1733,21 +1848,24 @@ async def get_staff(  # type: ignore
     return [
         {
             "id": str(s.id),
-            "guardId": s.staffId,
+            "staffId": s.staffId,
+            "title": s.title,
             "firstName": s.firstName,
             "lastName": s.lastName,
             "idCardNumber": s.idCardNumber,
+            "birthDate": s.birthDate,
             "phone": s.phone,
+            "email": s.email,
             "address": s.address,
             "position": s.position,
             "department": s.department,
             "startDate": s.startDate,
-            "birthDate": s.birthDate,
             "salary": s.salary,
-            "salaryType": s.salaryType,
-            "paymentMethod": s.paymentMethod,
             "bankAccountNo": s.bankAccountNo,
             "bankCode": s.bankCode,
+            "emergencyContactName": s.emergencyContactName,
+            "emergencyContactPhone": s.emergencyContactPhone,
+            "emergencyContactRelation": s.emergencyContactRelation,
             "isActive": s.isActive,
             "createdAt": s.createdAt
         }
@@ -1761,47 +1879,94 @@ async def create_staff(  # type: ignore
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new staff"""
-    result = await db.execute(select(Staff).where(Staff.staffId == staff_data.guardId))
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Staff ID already exists")
+    # Auto-generate staffId like ST-0001
+    result = await db.execute(
+        select(Staff.staffId)
+        .where(Staff.staffId.like('ST-%'))
+        .order_by(Staff.staffId.desc())
+        .limit(1)
+    )
+    last_staff_id = result.scalar_one_or_none()
+    
+    if last_staff_id:
+        last_num = int(last_staff_id.split('-')[1])
+        next_num = last_num + 1
+    else:
+        next_num = 1
+    
+    new_staff_id = f"ST-{next_num:04d}"
+    
     new_staff = Staff(
-        staffId=staff_data.guardId,
+        staffId=new_staff_id,
+        title=staff_data.title,
         firstName=staff_data.firstName,
         lastName=staff_data.lastName,
         idCardNumber=staff_data.idCardNumber,
+        birthDate=staff_data.birthDate,
         phone=staff_data.phone,
+        email=staff_data.email,
         address=staff_data.address,
         position=staff_data.position,
         department=staff_data.department,
         startDate=staff_data.startDate,
-        birthDate=staff_data.birthDate,
         salary=staff_data.salary,
-        salaryType=staff_data.salaryType,
-        paymentMethod=staff_data.paymentMethod,
         bankAccountNo=staff_data.bankAccountNo,
         bankCode=staff_data.bankCode,
+        emergencyContactName=staff_data.emergencyContactName,
+        emergencyContactPhone=staff_data.emergencyContactPhone,
+        emergencyContactRelation=staff_data.emergencyContactRelation,
         isActive=staff_data.isActive
     )
     db.add(new_staff)
     await db.commit()
     await db.refresh(new_staff)
+    
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="CREATE",
+        entity_type="staff",
+        entity_id=new_staff.staffId,
+        entity_name=f"{new_staff.staffId} - {new_staff.title or ''}{new_staff.firstName} {new_staff.lastName}",
+        description=f"สร้างข้อมูลพนักงานภายใน: {new_staff.staffId} - {new_staff.title or ''}{new_staff.firstName} {new_staff.lastName}",
+        new_data={
+            "staffId": new_staff.staffId,
+            "title": new_staff.title,
+            "firstName": new_staff.firstName,
+            "lastName": new_staff.lastName,
+            "idCardNumber": new_staff.idCardNumber,
+            "phone": new_staff.phone,
+            "email": new_staff.email,
+            "position": new_staff.position,
+            "department": new_staff.department,
+            "startDate": str(new_staff.startDate) if new_staff.startDate else None,
+            "emergencyContactName": new_staff.emergencyContactName,
+            "emergencyContactPhone": new_staff.emergencyContactPhone,
+            "isActive": new_staff.isActive
+        }
+    )
+    
     return {
         "id": str(new_staff.id),
-        "guardId": new_staff.staffId,
+        "staffId": new_staff.staffId,
+        "title": new_staff.title,
         "firstName": new_staff.firstName,
         "lastName": new_staff.lastName,
         "idCardNumber": new_staff.idCardNumber,
+        "birthDate": new_staff.birthDate,
         "phone": new_staff.phone,
+        "email": new_staff.email,
         "address": new_staff.address,
         "position": new_staff.position,
         "department": new_staff.department,
         "startDate": new_staff.startDate,
-        "birthDate": new_staff.birthDate,
         "salary": new_staff.salary,
-        "salaryType": new_staff.salaryType,
-        "paymentMethod": new_staff.paymentMethod,
         "bankAccountNo": new_staff.bankAccountNo,
         "bankCode": new_staff.bankCode,
+        "emergencyContactName": new_staff.emergencyContactName,
+        "emergencyContactPhone": new_staff.emergencyContactPhone,
+        "emergencyContactRelation": new_staff.emergencyContactRelation,
         "isActive": new_staff.isActive,
         "createdAt": new_staff.createdAt
     }
@@ -1823,21 +1988,24 @@ async def get_staff_member(  # type: ignore
         raise HTTPException(status_code=404, detail="Staff not found")
     return {
         "id": str(staff.id),
-        "guardId": staff.staffId,
+        "staffId": staff.staffId,
+        "title": staff.title,
         "firstName": staff.firstName,
         "lastName": staff.lastName,
         "idCardNumber": staff.idCardNumber,
+        "birthDate": staff.birthDate,
         "phone": staff.phone,
+        "email": staff.email,
         "address": staff.address,
         "position": staff.position,
         "department": staff.department,
         "startDate": staff.startDate,
-        "birthDate": staff.birthDate,
         "salary": staff.salary,
-        "salaryType": staff.salaryType,
-        "paymentMethod": staff.paymentMethod,
         "bankAccountNo": staff.bankAccountNo,
         "bankCode": staff.bankCode,
+        "emergencyContactName": staff.emergencyContactName,
+        "emergencyContactPhone": staff.emergencyContactPhone,
+        "emergencyContactRelation": staff.emergencyContactRelation,
         "isActive": staff.isActive,
         "createdAt": staff.createdAt
     }
@@ -1858,14 +2026,52 @@ async def update_staff(  # type: ignore
     staff = result.scalar_one_or_none()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
+    
+    # Store old data for audit
+    old_data = {
+        "staffId": staff.staffId,
+        "title": staff.title,
+        "firstName": staff.firstName,
+        "lastName": staff.lastName,
+        "idCardNumber": staff.idCardNumber,
+        "birthDate": str(staff.birthDate) if staff.birthDate else None,
+        "phone": staff.phone,
+        "email": staff.email,
+        "address": staff.address,
+        "position": staff.position,
+        "department": staff.department,
+        "startDate": str(staff.startDate) if staff.startDate else None,
+        "salary": str(staff.salary) if staff.salary else None,
+        "bankAccountNo": staff.bankAccountNo,
+        "bankCode": staff.bankCode,
+        "emergencyContactName": staff.emergencyContactName,
+        "emergencyContactPhone": staff.emergencyContactPhone,
+        "emergencyContactRelation": staff.emergencyContactRelation,
+        "isActive": staff.isActive
+    }
+    changes = []
+    
+    # Update all fields
+    if staff_data.title is not None:
+        if staff_data.title != staff.title:
+            changes.append("title")
+        staff.title = staff_data.title  # type: ignore[assignment]
     if staff_data.firstName is not None:
+        if staff_data.firstName != staff.firstName:
+            changes.append("firstName")
         staff.firstName = staff_data.firstName  # type: ignore[assignment]
     if staff_data.lastName is not None:
+        if staff_data.lastName != staff.lastName:
+            changes.append("lastName")
         staff.lastName = staff_data.lastName  # type: ignore[assignment]
     if staff_data.idCardNumber is not None:
         staff.idCardNumber = staff_data.idCardNumber  # type: ignore[assignment]
+    if staff_data.birthDate is not None:
+        staff.birthDate = staff_data.birthDate  # type: ignore[assignment]
     if staff_data.phone is not None:
         staff.phone = staff_data.phone  # type: ignore[assignment]
+    if staff_data.email is not None:
+        staff.email = staff_data.email  # type: ignore[assignment]
     if staff_data.address is not None:
         staff.address = staff_data.address  # type: ignore[assignment]
     if staff_data.position is not None:
@@ -1874,39 +2080,80 @@ async def update_staff(  # type: ignore
         staff.department = staff_data.department  # type: ignore[assignment]
     if staff_data.startDate is not None:
         staff.startDate = staff_data.startDate  # type: ignore[assignment]
-    if staff_data.birthDate is not None:
-        staff.birthDate = staff_data.birthDate  # type: ignore[assignment]
     if staff_data.salary is not None:
         staff.salary = staff_data.salary  # type: ignore[assignment]
-    if staff_data.salaryType is not None:
-        staff.salaryType = staff_data.salaryType  # type: ignore[assignment]
-    if staff_data.paymentMethod is not None:
-        staff.paymentMethod = staff_data.paymentMethod  # type: ignore[assignment]
     if staff_data.bankAccountNo is not None:
         staff.bankAccountNo = staff_data.bankAccountNo  # type: ignore[assignment]
     if staff_data.bankCode is not None:
         staff.bankCode = staff_data.bankCode  # type: ignore[assignment]
+    if staff_data.emergencyContactName is not None:
+        staff.emergencyContactName = staff_data.emergencyContactName  # type: ignore[assignment]
+    if staff_data.emergencyContactPhone is not None:
+        staff.emergencyContactPhone = staff_data.emergencyContactPhone  # type: ignore[assignment]
+    if staff_data.emergencyContactRelation is not None:
+        staff.emergencyContactRelation = staff_data.emergencyContactRelation  # type: ignore[assignment]
     if staff_data.isActive is not None:
+        if staff_data.isActive != staff.isActive:
+            changes.append("isActive")
         staff.isActive = staff_data.isActive  # type: ignore[assignment]
+    
     await db.commit()
     await db.refresh(staff)
+    
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="UPDATE",
+        entity_type="staff",
+        entity_id=staff.staffId,
+        entity_name=f"{staff.staffId} - {staff.title or ''}{staff.firstName} {staff.lastName}",
+        description=f"แก้ไขข้อมูลพนักงานภายใน: {staff.staffId} - {staff.title or ''}{staff.firstName} {staff.lastName}",
+        old_data=old_data,
+        new_data={
+            "staffId": staff.staffId,
+            "title": staff.title,
+            "firstName": staff.firstName,
+            "lastName": staff.lastName,
+            "idCardNumber": staff.idCardNumber,
+            "birthDate": str(staff.birthDate) if staff.birthDate else None,
+            "phone": staff.phone,
+            "email": staff.email,
+            "address": staff.address,
+            "position": staff.position,
+            "department": staff.department,
+            "startDate": str(staff.startDate) if staff.startDate else None,
+            "salary": str(staff.salary) if staff.salary else None,
+            "bankAccountNo": staff.bankAccountNo,
+            "bankCode": staff.bankCode,
+            "emergencyContactName": staff.emergencyContactName,
+            "emergencyContactPhone": staff.emergencyContactPhone,
+            "emergencyContactRelation": staff.emergencyContactRelation,
+            "isActive": staff.isActive
+        },
+        changes=changes if changes else None
+    )
+    
     return {
         "id": str(staff.id),
-        "guardId": staff.staffId,
+        "staffId": staff.staffId,
+        "title": staff.title,
         "firstName": staff.firstName,
         "lastName": staff.lastName,
         "idCardNumber": staff.idCardNumber,
+        "birthDate": staff.birthDate,
         "phone": staff.phone,
+        "email": staff.email,
         "address": staff.address,
         "position": staff.position,
         "department": staff.department,
         "startDate": staff.startDate,
-        "birthDate": staff.birthDate,
         "salary": staff.salary,
-        "salaryType": staff.salaryType,
-        "paymentMethod": staff.paymentMethod,
         "bankAccountNo": staff.bankAccountNo,
         "bankCode": staff.bankCode,
+        "emergencyContactName": staff.emergencyContactName,
+        "emergencyContactPhone": staff.emergencyContactPhone,
+        "emergencyContactRelation": staff.emergencyContactRelation,
         "isActive": staff.isActive,
         "createdAt": staff.createdAt
     }
@@ -1926,8 +2173,35 @@ async def delete_staff(
     staff = result.scalar_one_or_none()
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
+    
+    # Store data for audit before deletion
+    staff_id_code = staff.staffId
+    staff_name = f"{staff.title or ''}{staff.firstName} {staff.lastName}"
+    staff_data = {
+        "staffId": staff.staffId,
+        "firstName": staff.firstName,
+        "lastName": staff.lastName,
+        "phone": staff.phone,
+        "email": staff.email,
+        "position": staff.position,
+        "isActive": staff.isActive
+    }
+    
     await db.delete(staff)
     await db.commit()
+    
+    # Create audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="DELETE",
+        entity_type="staff",
+        entity_id=staff_id_code,
+        entity_name=staff_name,
+        description=f"ลบพนักงานภายใน: {staff_id_code} - {staff_name}",
+        old_data=staff_data
+    )
+    
     return {"message": "Staff deleted successfully"}
 
 
