@@ -1720,7 +1720,7 @@ async def delete_guard(
     return {"message": "Guard deleted successfully"}
 
 
-# ========== STAFF ENDPOINTS ==========
+# ========== STAFF ENDPOINTS ========== 
 
 @router.get("/staff", response_model=List[StaffResponse])
 async def get_staff(  # type: ignore
@@ -1730,8 +1730,7 @@ async def get_staff(  # type: ignore
     """Get all staff"""
     result = await db.execute(select(Staff).order_by(Staff.id))
     staff_list = result.scalars().all()
-    
-    return [  # type: ignore
+    return [
         {
             "id": str(s.id),
             "guardId": s.staffId,
@@ -1755,7 +1754,6 @@ async def get_staff(  # type: ignore
         for s in staff_list
     ]
 
-
 @router.post("/staff", response_model=StaffResponse)
 async def create_staff(  # type: ignore
     staff_data: StaffCreate,
@@ -1763,11 +1761,9 @@ async def create_staff(  # type: ignore
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new staff"""
-    # Check if staffId (guardId) already exists
     result = await db.execute(select(Staff).where(Staff.staffId == staff_data.guardId))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Staff ID already exists")
-    
     new_staff = Staff(
         staffId=staff_data.guardId,
         firstName=staff_data.firstName,
@@ -1786,12 +1782,10 @@ async def create_staff(  # type: ignore
         bankCode=staff_data.bankCode,
         isActive=staff_data.isActive
     )
-    
     db.add(new_staff)
     await db.commit()
     await db.refresh(new_staff)
-    
-    return {  # type: ignore
+    return {
         "id": str(new_staff.id),
         "guardId": new_staff.staffId,
         "firstName": new_staff.firstName,
@@ -1812,7 +1806,6 @@ async def create_staff(  # type: ignore
         "createdAt": new_staff.createdAt
     }
 
-
 @router.get("/staff/{staff_id}", response_model=StaffResponse)
 async def get_staff_member(  # type: ignore
     staff_id: str,
@@ -1824,14 +1817,11 @@ async def get_staff_member(  # type: ignore
         sid = int(staff_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid staff ID")
-        
     result = await db.execute(select(Staff).where(Staff.id == sid))
     staff = result.scalar_one_or_none()
-    
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
-    
-    return {  # type: ignore
+    return {
         "id": str(staff.id),
         "guardId": staff.staffId,
         "firstName": staff.firstName,
@@ -1852,7 +1842,6 @@ async def get_staff_member(  # type: ignore
         "createdAt": staff.createdAt
     }
 
-
 @router.put("/staff/{staff_id}", response_model=StaffResponse)
 async def update_staff(  # type: ignore
     staff_id: str,
@@ -1865,13 +1854,10 @@ async def update_staff(  # type: ignore
         sid = int(staff_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid staff ID")
-        
     result = await db.execute(select(Staff).where(Staff.id == sid))
     staff = result.scalar_one_or_none()
-    
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
-    
     if staff_data.firstName is not None:
         staff.firstName = staff_data.firstName  # type: ignore[assignment]
     if staff_data.lastName is not None:
@@ -1902,11 +1888,9 @@ async def update_staff(  # type: ignore
         staff.bankCode = staff_data.bankCode  # type: ignore[assignment]
     if staff_data.isActive is not None:
         staff.isActive = staff_data.isActive  # type: ignore[assignment]
-        
     await db.commit()
     await db.refresh(staff)
-    
-    return {  # type: ignore
+    return {
         "id": str(staff.id),
         "guardId": staff.staffId,
         "firstName": staff.firstName,
@@ -1927,7 +1911,6 @@ async def update_staff(  # type: ignore
         "createdAt": staff.createdAt
     }
 
-
 @router.delete("/staff/{staff_id}")
 async def delete_staff(
     staff_id: str,
@@ -1939,16 +1922,12 @@ async def delete_staff(
         sid = int(staff_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid staff ID")
-        
     result = await db.execute(select(Staff).where(Staff.id == sid))
     staff = result.scalar_one_or_none()
-    
     if not staff:
         raise HTTPException(status_code=404, detail="Staff not found")
-        
     await db.delete(staff)
     await db.commit()
-    
     return {"message": "Staff deleted successfully"}
 
 
