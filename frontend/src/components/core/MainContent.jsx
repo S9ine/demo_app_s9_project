@@ -8,7 +8,6 @@ import Scheduler from '../pages/Scheduler';
 import SettingsPage from '../pages/SettingsPage';
 import MasterDataPage from '../pages/MasterDataPage';
 import StaffList from '../pages/StaffList';
-import DailyAdvancePage from '../pages/DailyAdvancePage';
 import ProductList from '../pages/ProductList';
 import AuditLogsPage from '../pages/AuditLogsPage';
 import ShiftList from '../pages/ShiftList';
@@ -22,10 +21,6 @@ export default function MainContent({ activePage, setActivePage, user }) {
             case 'dashboard': return <Dashboard user={user} setActivePage={setActivePage} />;
             case 'customer-list': return <CustomerList user={user} />;
             case 'site-list': return <SiteList user={user} />;
-
-            // --- จุดที่แก้ไข ---
-            //                                  vvvvvvvvvvv <-- 2. ส่ง user prop ต่อไปให้ DailyAdvancePage
-            case 'daily-advance': return <DailyAdvancePage user={user} />;
 
             case 'guard-list': return <GuardList user={user} />;
             case 'staff-list': return <StaffList user={user} />;

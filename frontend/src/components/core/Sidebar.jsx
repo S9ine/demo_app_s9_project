@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
-    ChevronDown, Home, Users, Briefcase, UserCheck, FileText, Calendar, Settings, X, Menu, Search,
-    Building2, MapPin, Shield, UsersRound, Receipt, Package, Wrench, DollarSign,
-    ShoppingBag, HeartHandshake, LayoutGrid, Database, History, Clock
+    ChevronDown, Home, Users, Briefcase, FileText, Calendar, Settings, X, Menu, Search,
+    Building2, MapPin, Shield, UsersRound, Package,
+    HeartHandshake, LayoutGrid, Database, History, Clock
 } from 'lucide-react';
 
 export default function Sidebar({ setActivePage, activePage, userPermissions, userRole }) {
@@ -57,19 +57,11 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
             ]
         },
         {
-            id: 'requests', icon: Receipt, label: 'รายการเบิก', color: 'from-orange-500 to-orange-600', subItems: [
-                { id: 'daily-advance', icon: DollarSign, label: 'เบิกรายวัน', color: 'from-amber-500 to-amber-600' },
-                { id: 'equipment-request', icon: Wrench, label: 'เบิกอุปกรณ์', color: 'from-orange-500 to-orange-600' },
-                { id: 'damage-deposit', icon: ShoppingBag, label: 'เงินประกันความเสียหาย', color: 'from-red-500 to-red-600' },
-            ]
-        },
-        {
             id: 'services', icon: HeartHandshake, label: 'สินค้าและบริการ', color: 'from-pink-500 to-pink-600', subItems: [
                 { id: 'services', icon: HeartHandshake, label: 'บริการ', color: 'from-pink-500 to-pink-600' },
                 { id: 'product', icon: Package, label: 'สินค้า', color: 'from-rose-500 to-rose-600' },
             ]
         },
-        { id: 'social-security', icon: UserCheck, label: 'ประกันสังคม', color: 'from-cyan-500 to-cyan-600' },
         { id: 'scheduler', icon: Calendar, label: 'ตารางงาน', color: 'from-violet-500 to-violet-600' },
         { id: 'audit-logs', icon: History, label: 'ประวัติการแก้ไข', color: 'from-indigo-500 to-indigo-600', adminOnly: true },
         { id: 'master-data', icon: Database, label: 'ข้อมูลหลัก', color: 'from-slate-500 to-slate-600', adminOnly: true },

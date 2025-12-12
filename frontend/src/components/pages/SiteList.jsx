@@ -429,22 +429,37 @@ export default function SiteList() {
                                             const profit = totalRevenue - totalCost;
                                             
                                             return (
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <span className="text-gray-600">รายได้/เดือน:</span>
-                                                        <span className="font-semibold text-blue-600">
+                                                <div className="bg-gradient-to-br from-gray-50 to-white rounded-lg p-2.5 border border-gray-100 shadow-sm">
+                                                    <div className="flex justify-between items-center text-xs mb-1.5">
+                                                        <span className="text-gray-500 flex items-center">
+                                                            <svg className="w-3 h-3 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                            รายได้
+                                                        </span>
+                                                        <span className="font-bold text-blue-600">
                                                             ฿{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-2 text-xs">
-                                                        <span className="text-gray-600">ต้นทุน/เดือน:</span>
-                                                        <span className="font-semibold text-orange-600">
+                                                    <div className="flex justify-between items-center text-xs mb-1.5">
+                                                        <span className="text-gray-500 flex items-center">
+                                                            <svg className="w-3 h-3 mr-1 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                                            </svg>
+                                                            ต้นทุน
+                                                        </span>
+                                                        <span className="font-bold text-orange-600">
                                                             ฿{totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </span>
                                                     </div>
-                                                    <div className="flex items-center gap-2 text-xs border-t pt-1">
-                                                        <span className="text-gray-600">กำไร/เดือน:</span>
-                                                        <span className={`font-semibold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    <div className={`flex justify-between items-center text-xs pt-1.5 border-t ${profit >= 0 ? 'border-green-200' : 'border-red-200'}`}>
+                                                        <span className={`flex items-center ${profit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={profit >= 0 ? "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" : "M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"} />
+                                                            </svg>
+                                                            กำไร
+                                                        </span>
+                                                        <span className={`font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                                             ฿{profit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </span>
                                                     </div>
