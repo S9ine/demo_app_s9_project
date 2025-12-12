@@ -3,7 +3,7 @@ import {
     Users, Building2, Shield, Calendar, TrendingUp, TrendingDown,
     DollarSign, Package, AlertCircle, CheckCircle, Clock, ArrowUpRight
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../../config/api';
 import { FullPageLoading } from '../common/LoadingSpinner';
 
 export default function Dashboard({ setActivePage }) {
@@ -24,17 +24,14 @@ export default function Dashboard({ setActivePage }) {
 
     const fetchDashboardData = async () => {
         try {
-            const token = localStorage.getItem('token');
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-
-            // Fetch all data in parallel
+            // Fetch all data in parallel using api instance (handles auth automatically)
             const [customers, sites, guards, staff, services, products] = await Promise.all([
-                axios.get('http://localhost:8000/api/customers', config),
-                axios.get('http://localhost:8000/api/sites', config),
-                axios.get('http://localhost:8000/api/guards', config),
-                axios.get('http://localhost:8000/api/staff', config),
-                axios.get('http://localhost:8000/api/services', config),
-                axios.get('http://localhost:8000/api/products', config)
+                api.get('/customers'),
+                api.get('/sites'),
+                api.get('/guards'),
+                api.get('/staff'),
+                api.get('/services'),
+                api.get('/products')
             ]);
 
             setStats({

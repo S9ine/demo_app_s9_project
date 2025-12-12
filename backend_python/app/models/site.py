@@ -17,6 +17,8 @@ class Site(Base):
     # ข้อมูลสัญญา
     contractStartDate = Column(Date, nullable=True)  # วันเริ่มสัญญา
     contractEndDate = Column(Date, nullable=True)  # วันสิ้นสุดสัญญา
+    contractFilePath = Column(String(500), nullable=True)  # ไฟล์เอกสารสัญญา (path)
+    contractFileName = Column(String(255), nullable=True)  # ชื่อไฟล์ต้นฉบับ
     
     # ที่อยู่หน่วยงาน
     address = Column(String(500), nullable=True)  # ที่อยู่หน่วยงาน

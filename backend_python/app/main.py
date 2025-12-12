@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 from app.database import init_db, close_db
 from app.api import auth, users, master_data, daily_advances, schedules, audit_logs
+from app.config import settings
 import logging
 
 logger = logging.getLogger(__name__)
@@ -31,13 +32,11 @@ app = FastAPI(
 )
 
 # CORS middleware configuration
+# Origins อ่านจาก CORS_ORIGINS ใน .env (comma separated)
+logger.info(f"CORS Origins: {settings.cors_origins_list}")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:5174",  # Vite dev server (alternative port)
-        "http://localhost:3000",  # Alternative dev port
-    ],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

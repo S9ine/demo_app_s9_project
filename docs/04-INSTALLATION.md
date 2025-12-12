@@ -449,3 +449,6 @@ localStorage.setItem('debug', 'true');
 | Login | admin / admin123 |
 | Init Database | `python init_db.py` |
 | Create Backup | `pg_dump -U postgres -d erp_db -f backup.sql` |
+
+
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

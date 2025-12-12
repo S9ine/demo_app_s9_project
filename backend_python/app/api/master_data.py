@@ -28,6 +28,7 @@ from app.models.user import User
 from app.models.product import Product
 from app.models.service import Service
 from app.models.shift import Shift
+from app.models.schedule import Schedule
 from app.api.audit_logs import create_audit_log
 import json
 
@@ -872,6 +873,8 @@ async def get_sites(  # type: ignore
             "customerName": site.customerName if hasattr(site, 'customerName') else (customer.name if customer else None),
             "contractStartDate": site.contractStartDate.isoformat() if hasattr(site, 'contractStartDate') and site.contractStartDate else None,  # type: ignore[arg-type]
             "contractEndDate": site.contractEndDate.isoformat() if hasattr(site, 'contractEndDate') and site.contractEndDate else None,  # type: ignore[arg-type]
+            "contractFilePath": site.contractFilePath if hasattr(site, 'contractFilePath') else None,
+            "contractFileName": site.contractFileName if hasattr(site, 'contractFileName') else None,
             "address": site.address,
             "subDistrict": site.subDistrict if hasattr(site, 'subDistrict') else None,
             "district": site.district if hasattr(site, 'district') else None,
@@ -1062,6 +1065,8 @@ async def get_site( # type: ignore
         "customerName": site.customerName if hasattr(site, 'customerName') else (customer.name if customer else None),
         "contractStartDate": site.contractStartDate.isoformat() if hasattr(site, 'contractStartDate') and site.contractStartDate else None,  # type: ignore[arg-type]
         "contractEndDate": site.contractEndDate.isoformat() if hasattr(site, 'contractEndDate') and site.contractEndDate else None,  # type: ignore[arg-type]
+        "contractFilePath": site.contractFilePath if hasattr(site, 'contractFilePath') else None,
+        "contractFileName": site.contractFileName if hasattr(site, 'contractFileName') else None,
         "address": site.address,
         "subDistrict": site.subDistrict if hasattr(site, 'subDistrict') else None,
         "district": site.district if hasattr(site, 'district') else None,
@@ -1074,6 +1079,40 @@ async def get_site( # type: ignore
         "contractedServices": json.loads(site.contractedServices) if site.contractedServices else [],  # type: ignore[arg-type]
         "isActive": site.isActive,
         "createdAt": site.createdAt
+    }
+
+
+@router.get("/sites/{site_id}/has-schedule")
+async def check_site_has_schedule(
+    site_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """ตรวจสอบว่า Site มีตารางงานหรือไม่ และกะไหนมีคนแล้วบ้าง"""
+    import json
+    
+    # ดึง schedules ทั้งหมดของ site นี้
+    schedule_result = await db.execute(
+        select(Schedule).where(Schedule.siteId == site_id)
+    )
+    schedules = schedule_result.scalars().all()
+    
+    # เก็บ shiftCode ที่มีคนจัดแล้ว
+    shifts_with_guards = set()
+    
+    for schedule in schedules:
+        if schedule.shifts:
+            try:
+                shifts_data = json.loads(schedule.shifts)
+                for shift_code, guards in shifts_data.items():
+                    if guards and len(guards) > 0:
+                        shifts_with_guards.add(shift_code)
+            except:
+                pass
+    
+    return {
+        "hasSchedule": len(schedules) > 0,
+        "shiftsWithGuards": list(shifts_with_guards)  # กะที่มีคนจัดแล้ว
     }
 
 
@@ -1244,6 +1283,8 @@ async def update_site(  # type: ignore
         "customerName": site.customerName if hasattr(site, 'customerName') else (customer.name if customer else None),
         "contractStartDate": site.contractStartDate.isoformat() if hasattr(site, 'contractStartDate') and site.contractStartDate else None,  # type: ignore[arg-type]
         "contractEndDate": site.contractEndDate.isoformat() if hasattr(site, 'contractEndDate') and site.contractEndDate else None,  # type: ignore[arg-type]
+        "contractFilePath": site.contractFilePath if hasattr(site, 'contractFilePath') else None,
+        "contractFileName": site.contractFileName if hasattr(site, 'contractFileName') else None,
         "address": site.address,
         "subDistrict": site.subDistrict if hasattr(site, 'subDistrict') else None,
         "district": site.district if hasattr(site, 'district') else None,
@@ -1277,6 +1318,18 @@ async def delete_site(
     if not site:
         raise HTTPException(status_code=404, detail="Site not found")
     
+    # ตรวจสอบว่ามีการจัดตารางงานหรือไม่
+    schedule_result = await db.execute(
+        select(Schedule).where(Schedule.siteId == sid).limit(1)
+    )
+    has_schedule = schedule_result.scalar_one_or_none()
+    
+    if has_schedule:
+        raise HTTPException(
+            status_code=400, 
+            detail="ไม่สามารถลบหน่วยงานนี้ได้ เนื่องจากมีการจัดตารางงานอยู่แล้ว กรุณาลบตารางงานก่อน"
+        )
+    
     # Store data for audit before deletion
     site_code = site.siteCode
     site_name = site.name
@@ -1309,6 +1362,164 @@ async def delete_site(
     )
     
     return {"message": "Site deleted successfully"}
+
+
+# ========== SITE CONTRACT FILE ENDPOINTS ==========
+
+UPLOAD_DIR = "uploads/contracts"
+
+@router.post("/sites/{site_id}/contract-file")
+async def upload_contract_file(
+    site_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Upload contract file for a site"""
+    try:
+        sid = int(site_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid site ID")
+    
+    result = await db.execute(select(Site).where(Site.id == sid))
+    site = result.scalar_one_or_none()
+    
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    # Validate file type
+    allowed_extensions = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png']
+    file_ext = os.path.splitext(file.filename)[1].lower() if file.filename else ''
+    
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"ไฟล์ไม่ถูกต้อง กรุณาอัปโหลดไฟล์ประเภท: {', '.join(allowed_extensions)}"
+        )
+    
+    # Create upload directory if not exists
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    
+    # Delete old file if exists
+    if site.contractFilePath and os.path.exists(site.contractFilePath):
+        try:
+            os.remove(site.contractFilePath)
+        except Exception:
+            pass  # Ignore error if file doesn't exist
+    
+    # Generate unique filename
+    import uuid
+    unique_filename = f"{site.siteCode}_{uuid.uuid4().hex[:8]}{file_ext}"
+    file_path = os.path.join(UPLOAD_DIR, unique_filename)
+    
+    # Save file
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+    
+    # Update database
+    site.contractFilePath = file_path
+    site.contractFileName = file.filename
+    await db.commit()
+    
+    # Audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="UPDATE",
+        entity_type="sites",
+        entity_id=site.siteCode,
+        entity_name=site.name,
+        description=f"อัปโหลดเอกสารสัญญา: {file.filename}",
+        new_data={"contractFileName": file.filename}
+    )
+    
+    return {
+        "message": "อัปโหลดเอกสารสัญญาสำเร็จ",
+        "contractFilePath": file_path,
+        "contractFileName": file.filename
+    }
+
+
+@router.get("/sites/{site_id}/contract-file")
+async def download_contract_file(
+    site_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Download contract file for a site"""
+    try:
+        sid = int(site_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid site ID")
+    
+    result = await db.execute(select(Site).where(Site.id == sid))
+    site = result.scalar_one_or_none()
+    
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    if not site.contractFilePath:
+        raise HTTPException(status_code=404, detail="ไม่พบเอกสารสัญญา")
+    
+    if not os.path.exists(site.contractFilePath):
+        raise HTTPException(status_code=404, detail="ไฟล์เอกสารไม่พบในระบบ")
+    
+    return FileResponse(
+        path=site.contractFilePath,
+        filename=site.contractFileName or "contract_file",
+        media_type="application/octet-stream"
+    )
+
+
+@router.delete("/sites/{site_id}/contract-file")
+async def delete_contract_file(
+    site_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Delete contract file for a site"""
+    try:
+        sid = int(site_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid site ID")
+    
+    result = await db.execute(select(Site).where(Site.id == sid))
+    site = result.scalar_one_or_none()
+    
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    if not site.contractFilePath:
+        raise HTTPException(status_code=404, detail="ไม่พบเอกสารสัญญา")
+    
+    old_filename = site.contractFileName
+    
+    # Delete physical file
+    if os.path.exists(site.contractFilePath):
+        try:
+            os.remove(site.contractFilePath)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"ไม่สามารถลบไฟล์ได้: {str(e)}")
+    
+    # Update database
+    site.contractFilePath = None
+    site.contractFileName = None
+    await db.commit()
+    
+    # Audit log
+    await create_audit_log(
+        db=db,
+        current_user=current_user,
+        action="UPDATE",
+        entity_type="sites",
+        entity_id=site.siteCode,
+        entity_name=site.name,
+        description=f"ลบเอกสารสัญญา: {old_filename}",
+        old_data={"contractFileName": old_filename}
+    )
+    
+    return {"message": "ลบเอกสารสัญญาสำเร็จ"}
 
 
 # ========== GUARD ENDPOINTS ==========
@@ -2652,6 +2863,30 @@ async def delete_shift(shift_id: int, db: AsyncSession = Depends(get_db)):
     shift = result.scalar_one_or_none()
     if not shift:
         raise HTTPException(status_code=404, detail="ไม่พบข้อมูลกะ")
+    
+    # ตรวจสอบว่ากะถูกใช้ในตารางงานหรือไม่
+    schedule_result = await db.execute(
+        select(Schedule).where(Schedule.shifts.contains(shift.shiftCode)).limit(1)
+    )
+    has_schedule = schedule_result.scalar_one_or_none()
+    
+    if has_schedule:
+        raise HTTPException(
+            status_code=400, 
+            detail="ไม่สามารถลบกะนี้ได้ เนื่องจากมีการใช้งานในตารางงานอยู่แล้ว"
+        )
+    
+    # ตรวจสอบว่ากะถูกใช้ในหน่วยงานหรือไม่
+    site_result = await db.execute(
+        select(Site).where(Site.shiftAssignments.contains(shift.shiftCode)).limit(1)
+    )
+    has_site = site_result.scalar_one_or_none()
+    
+    if has_site:
+        raise HTTPException(
+            status_code=400, 
+            detail="ไม่สามารถลบกะนี้ได้ เนื่องจากมีหน่วยงานที่ใช้กะนี้อยู่"
+        )
     
     await db.delete(shift)
     await db.commit()

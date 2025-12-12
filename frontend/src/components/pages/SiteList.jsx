@@ -6,7 +6,7 @@ import ConfirmationModal from '../modals/ConfirmationModal';
 import GenericExcelImportModal from '../modals/GenericExcelImportModal';
 import EntityHistoryModal from '../modals/EntityHistoryModal';
 import { FullPageLoading } from '../common/LoadingSpinner';
-import { PlusCircle, Edit, Trash2, Download, Search, X, Upload, History } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Download, Search, X, Upload, History, Power } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 import * as XLSX from 'xlsx';
 
@@ -90,15 +90,18 @@ export default function SiteList() {
             
             console.log('🚀 Sending to backend:', payload);
 
+            let response;
             if (siteData.id) {
-                await api.put(`/sites/${siteData.id}`, payload);
+                response = await api.put(`/sites/${siteData.id}`, payload);
             } else {
-                await api.post('/sites', payload);
+                response = await api.post('/sites', payload);
             }
             fetchData();
-            handleCloseModal();
+            // Return saved site for file upload
+            return response.data;
         } catch (error) {
             alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            return null;
         }
     };
 
@@ -117,6 +120,25 @@ export default function SiteList() {
             } catch (error) {
                 alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการลบข้อมูล');
             }
+        }
+    };
+
+    const handleToggleActive = async (site) => {
+        const newStatus = !site.isActive;
+        const action = newStatus ? 'เปิดใช้งาน' : 'ปิดใช้งาน';
+        
+        if (!window.confirm(`ต้องการ${action}หน่วยงาน "${site.name}" หรือไม่?`)) {
+            return;
+        }
+        
+        try {
+            await api.put(`/sites/${site.id}`, {
+                ...site,
+                isActive: newStatus
+            });
+            fetchData();
+        } catch (error) {
+            alert(error.response?.data?.detail || `เกิดข้อผิดพลาดในการ${action}`);
         }
     };
 
@@ -192,7 +214,15 @@ export default function SiteList() {
                 'เบอร์โทร': s.phone || '-',
                 'วันเริ่มสัญญา': s.contractStartDate || '-',
                 'วันสิ้นสุดสัญญา': s.contractEndDate || '-',
-                'สถานะ': s.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'
+                'วันที่เหลือ': (() => {
+                    if (!s.contractEndDate) return '-';
+                    const today = new Date();
+                    const endDate = new Date(s.contractEndDate);
+                    const diffDays = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+                    if (diffDays < 0) return `หมดสัญญาแล้ว ${Math.abs(diffDays)} วัน`;
+                    return `${diffDays} วัน`;
+                })(),
+                'สถานะ': s.isActive ? 'ใช้งาน' : 'ปิดใช้งาน'
             };
         });
 
@@ -423,11 +453,71 @@ export default function SiteList() {
                                         })()}
                                     </td>
                                     <td className="p-3">
-                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${s.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                            {s.isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'}
-                                        </span>
+                                        {(() => {
+                                            if (!s.isActive) {
+                                                return (
+                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                                                        ปิดใช้งาน
+                                                    </span>
+                                                );
+                                            }
+                                            
+                                            if (!s.contractEndDate) {
+                                                return (
+                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                                        ไม่ระบุสัญญา
+                                                    </span>
+                                                );
+                                            }
+                                            
+                                            const today = new Date();
+                                            today.setHours(0, 0, 0, 0);
+                                            const endDate = new Date(s.contractEndDate);
+                                            endDate.setHours(0, 0, 0, 0);
+                                            const diffTime = endDate - today;
+                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                            
+                                            if (diffDays < 0) {
+                                                return (
+                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                        หมดสัญญา {Math.abs(diffDays)} วัน
+                                                    </span>
+                                                );
+                                            } else if (diffDays === 0) {
+                                                return (
+                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                                        หมดสัญญาวันนี้
+                                                    </span>
+                                                );
+                                            } else if (diffDays <= 30) {
+                                                return (
+                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                                        เหลือ {diffDays} วัน
+                                                    </span>
+                                                );
+                                            } else if (diffDays <= 90) {
+                                                return (
+                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                                                        เหลือ {diffDays} วัน
+                                                    </span>
+                                                );
+                                            } else {
+                                                return (
+                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                                        เหลือ {diffDays} วัน
+                                                    </span>
+                                                );
+                                            }
+                                        })()}
                                     </td>
                                     <td className="p-3 flex space-x-2">
+                                        <button 
+                                            onClick={() => handleToggleActive(s)}
+                                            className={`${s.isActive ? 'text-green-500 hover:text-green-700' : 'text-gray-400 hover:text-gray-600'}`}
+                                            title={s.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                                        >
+                                            <Power className="w-5 h-5" />
+                                        </button>
                                         <button 
                                             onClick={() => {
                                                 setSelectedSiteForHistory({
@@ -442,8 +532,8 @@ export default function SiteList() {
                                         >
                                             <History className="w-5 h-5" />
                                         </button>
-                                        <button onClick={() => handleOpenModal(s)} className="text-blue-500 hover:text-blue-700"><Edit className="w-5 h-5" /></button>
-                                        <button onClick={() => openDeleteConfirm(s)} className="text-red-500 hover:text-red-700"><Trash2 className="w-5 h-5" /></button>
+                                        <button onClick={() => handleOpenModal(s)} className="text-blue-500 hover:text-blue-700" title="แก้ไข"><Edit className="w-5 h-5" /></button>
+                                        <button onClick={() => openDeleteConfirm(s)} className="text-red-500 hover:text-red-700" title="ลบ"><Trash2 className="w-5 h-5" /></button>
                                     </td>
                                 </tr>
                             ))}

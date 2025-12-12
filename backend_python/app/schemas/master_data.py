@@ -238,6 +238,8 @@ class SiteResponse(BaseModel):
     customerName: Optional[str] = None
     contractStartDate: Optional[str] = None
     contractEndDate: Optional[str] = None
+    contractFilePath: Optional[str] = None
+    contractFileName: Optional[str] = None
     address: Optional[str] = None
     subDistrict: Optional[str] = None
     district: Optional[str] = None

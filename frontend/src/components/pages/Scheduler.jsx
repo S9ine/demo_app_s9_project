@@ -116,10 +116,10 @@ export default function Scheduler() {
         const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
         setSelectedDate(date);
         
-        // Fetch schedules for this date
+        // Fetch schedules for this date - อัปเดตเฉพาะวันนั้น ไม่ reset ทั้งเดือน
         const scheduleData = await fetchSchedules(date);
         const dateKey = date.toISOString().split('T')[0];
-        setSchedule({ [dateKey]: scheduleData[dateKey] || {} });
+        setSchedule(prev => ({ ...prev, [dateKey]: scheduleData[dateKey] || {} }));
         
         setIsSiteModalOpen(true);
     };
@@ -206,9 +206,8 @@ export default function Scheduler() {
                 }
             }
 
-            // Reload schedule data
-            const scheduleData = await fetchSchedules(selectedDate);
-            setSchedule({ [dateKey]: scheduleData[dateKey] || {} });
+            // Reload schedule data - อัปเดตเฉพาะวันนั้น ไม่ reset ทั้งเดือน
+            await fetchMonthSchedules(currentDate);
 
         } catch (error) {
             console.error('เกิดข้อผิดพลาด:', error);
@@ -246,6 +245,17 @@ export default function Scheduler() {
 
         // --- Handle dropping into a shift ---
         const targetShiftCode = target; // shiftCode from shiftAssignments
+        
+        // ตรวจสอบว่ากะเต็มหรือยัง
+        const targetShiftInfo = siteShifts.find(s => s.shiftCode === targetShiftCode);
+        const targetCount = targetShiftInfo?.numberOfPeople || 0;
+        const currentCount = (shifts[targetShiftCode] || []).length;
+        if (targetCount > 0 && currentCount >= targetCount) {
+            // กะเต็มแล้ว ไม่อนุญาตให้เพิ่ม
+            setDraggedItem(null);
+            return;
+        }
+        
         if (source === targetShiftCode || (shifts[targetShiftCode] && shifts[targetShiftCode].find(g => g.id === guard.id))) {
             setDraggedItem(null);
             return;
@@ -352,8 +362,21 @@ export default function Scheduler() {
     // Filter Logic
     const dateKey = selectedDate ? selectedDate.toISOString().split('T')[0] : null;
     const scheduledSiteIds = dateKey && schedule[dateKey] ? Object.keys(schedule[dateKey]).map(String) : [];
+    const today = new Date().toISOString().split('T')[0];
 
-    let unscheduledSites = allSites.filter(site => !scheduledSiteIds.includes(String(site.id)));
+    // กรองเฉพาะ Site ที่ active และยังไม่หมดสัญญา (สำหรับหน่วยที่รอจัด)
+    const activeSites = allSites.filter(site => {
+        // ต้อง isActive
+        if (!site.isActive) return false;
+        // ถ้ามี contractEndDate ต้องยังไม่หมด
+        if (site.contractEndDate && site.contractEndDate < today) return false;
+        return true;
+    });
+
+    // หน่วยที่รอจัด - เฉพาะหน่วยที่ active และยังไม่หมดสัญญา
+    let unscheduledSites = activeSites.filter(site => !scheduledSiteIds.includes(String(site.id)));
+    
+    // หน่วยที่จัดแล้ว - แสดงทุกหน่วยที่มีในตาราง (รวมหน่วยที่ปิดไปแล้วด้วย)
     let scheduledSites = allSites.filter(site => scheduledSiteIds.includes(String(site.id)));
 
     if (siteSearchTerm) {
@@ -408,17 +431,49 @@ export default function Scheduler() {
                         const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
                         const dateKey = date.toISOString().split('T')[0];
                         const scheduledSitesForDay = schedule[dateKey] ? Object.keys(schedule[dateKey]).length : 0;
+                        // นับเฉพาะ Site ที่ active และยังไม่หมดสัญญา
+                        const totalSites = allSites.filter(s => {
+                            if (!s.isActive) return false;
+                            if (s.contractEndDate && s.contractEndDate < today) return false;
+                            return true;
+                        }).length;
+                        const unscheduledSitesCount = totalSites - scheduledSitesForDay;
+                        const isToday = dateKey === new Date().toISOString().split('T')[0];
+                        const isAllScheduled = scheduledSitesForDay > 0 && scheduledSitesForDay >= totalSites;
+                        
                         return (
                             <div 
                                 key={`calendar-day-${i}`} 
                                 onClick={() => handleDateClick(day)} 
-                                className="min-h-[80px] p-4 bg-white border-2 border-gray-200 rounded-xl cursor-pointer hover:border-indigo-500 hover:shadow-lg hover:scale-105 transition-all duration-200 relative flex items-start justify-center font-semibold text-lg"
+                                className={`min-h-[100px] p-3 bg-white border-2 rounded-xl cursor-pointer hover:border-indigo-500 hover:shadow-lg transition-all duration-200 relative flex flex-col ${isToday ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-gray-200'} ${isAllScheduled ? 'bg-green-50' : ''}`}
                             >
-                                <span className="text-gray-700">{day}</span>
-                                {scheduledSitesForDay > 0 && (
-                                    <span className="absolute bottom-2 right-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-md">
-                                        {scheduledSitesForDay}
-                                    </span>
+                                {/* วันที่ */}
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className={`text-lg font-bold ${isToday ? 'text-indigo-600' : 'text-gray-700'}`}>{day}</span>
+                                    {isToday && <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full font-medium">วันนี้</span>}
+                                </div>
+                                
+                                {/* แสดงสถิติ */}
+                                {(totalSites > 0 || scheduledSitesForDay > 0) && (
+                                    <div className="mt-auto space-y-1">
+                                        {scheduledSitesForDay > 0 && (
+                                            <div className="flex items-center text-xs">
+                                                <span className="w-2 h-2 rounded-full bg-green-500 mr-1.5"></span>
+                                                <span className="text-green-700 font-medium">จัดแล้ว {scheduledSitesForDay}</span>
+                                            </div>
+                                        )}
+                                        {unscheduledSitesCount > 0 && (
+                                            <div className="flex items-center text-xs">
+                                                <span className="w-2 h-2 rounded-full bg-orange-400 mr-1.5"></span>
+                                                <span className="text-orange-600 font-medium">รอจัด {unscheduledSitesCount}</span>
+                                            </div>
+                                        )}
+                                        {isAllScheduled && totalSites > 0 && (
+                                            <div className="flex items-center text-xs text-green-600 font-bold">
+                                                <span className="mr-1">✓</span> ครบแล้ว
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         )
@@ -614,9 +669,9 @@ export default function Scheduler() {
                                             return (
                                                 <div
                                                     key={`shift-${shiftInfo.shiftCode}`}
-                                                    onDragOver={handleDragOver}
-                                                    onDrop={(e) => handleDrop(e, shiftInfo.shiftCode)}
-                                                    className={`bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden border-2 ${colors.border} hover:shadow-xl transition-shadow`}
+                                                    onDragOver={isFull ? undefined : handleDragOver}
+                                                    onDrop={isFull ? undefined : (e) => handleDrop(e, shiftInfo.shiftCode)}
+                                                    className={`bg-white rounded-2xl shadow-lg flex flex-col overflow-hidden border-2 ${colors.border} hover:shadow-xl transition-shadow ${isFull ? 'cursor-not-allowed opacity-90' : ''}`}
                                                 >
                                                     {/* Shift Header */}
                                                     <div className={`bg-gradient-to-r ${colors.gradient} px-5 py-4`}>

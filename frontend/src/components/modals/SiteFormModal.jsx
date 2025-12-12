@@ -1,5 +1,108 @@
-import React, { useState, useEffect } from 'react';
-import { PlusCircle, Trash2, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { PlusCircle, Trash2, Clock, GripVertical, Upload, Download, FileText, X, Eye } from 'lucide-react';
+import api from '../../config/api';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+
+// Sortable Shift Item Component
+function SortableShiftItem({ id, index, shiftAssignment, selectedShift, isShiftLocked, shifts, handleShiftChange, removeShiftRow }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 1000 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`bg-white rounded-lg shadow-sm border p-4 hover:shadow-md transition-shadow ${isShiftLocked ? 'border-yellow-300 bg-yellow-50' : 'border-amber-200'} ${isDragging ? 'shadow-lg' : ''}`}
+        >
+            <div className="flex items-center gap-3 flex-wrap">
+                {/* Drag Handle */}
+                <button
+                    type="button"
+                    {...attributes}
+                    {...listeners}
+                    className="p-1 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing touch-none"
+                    title="ลากเพื่อจัดลำดับ"
+                >
+                    <GripVertical className="w-5 h-5" />
+                </button>
+                
+                {/* Lock indicator */}
+                {isShiftLocked && (
+                    <span className="text-yellow-600 text-sm" title="กะนี้มีคนจัดแล้ว">🔒</span>
+                )}
+                
+                {/* Shift Selection */}
+                <div className="flex items-center gap-2">
+                    <select
+                        value={shiftAssignment.shiftId || ''}
+                        onChange={(e) => handleShiftChange(index, 'shiftId', e.target.value)}
+                        disabled={isShiftLocked}
+                        className={`px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 font-medium min-w-[140px] ${isShiftLocked ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    >
+                        {shifts.map(shift => (
+                            <option key={shift.id} value={shift.id}>
+                                {shift.shiftCode} - {shift.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                
+                {/* Editable Time Inputs */}
+                <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-blue-100 px-3 py-1.5 rounded-lg border border-blue-200">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <input
+                        type="time"
+                        value={shiftAssignment.startTime || selectedShift?.startTime || ''}
+                        onChange={(e) => handleShiftChange(index, 'startTime', e.target.value)}
+                        className="px-2 py-0.5 border border-blue-300 rounded text-sm focus:ring-1 focus:ring-blue-500 bg-white w-24"
+                        title="เวลาเข้า"
+                    />
+                    <span className="text-blue-600 font-bold">-</span>
+                    <input
+                        type="time"
+                        value={shiftAssignment.endTime || selectedShift?.endTime || ''}
+                        onChange={(e) => handleShiftChange(index, 'endTime', e.target.value)}
+                        className="px-2 py-0.5 border border-blue-300 rounded text-sm focus:ring-1 focus:ring-blue-500 bg-white w-24"
+                        title="เวลาออก"
+                    />
+                </div>
+                
+                {/* Number of People */}
+                <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-600 whitespace-nowrap">จำนวน:</label>
+                    <input
+                        type="number"
+                        value={shiftAssignment.numberOfPeople || 1}
+                        onChange={(e) => handleShiftChange(index, 'numberOfPeople', parseInt(e.target.value) || 1)}
+                        min="1"
+                        className="w-14 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:ring-1 focus:ring-amber-500"
+                    />
+                    <span className="text-xs text-gray-500">คน</span>
+                </div>
+                
+                {/* Delete Button */}
+                <button
+                    type="button"
+                    onClick={() => removeShiftRow(index)}
+                    disabled={isShiftLocked}
+                    className={`p-1.5 rounded-lg transition-colors ml-auto ${isShiftLocked ? 'text-gray-300 cursor-not-allowed' : 'text-red-500 hover:bg-red-50'}`}
+                    title={isShiftLocked ? 'ไม่สามารถลบได้ เนื่องจากกะนี้มีคนจัดแล้ว' : 'ลบกะนี้'}
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            </div>
+        </div>
+    );
+}
 
 
 export default function SiteFormModal({ isOpen, onClose, site, onSave, customers }) {
@@ -10,6 +113,19 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
     const [shifts, setShifts] = useState([]);
     const [positionSearches, setPositionSearches] = useState({});
     const [showPositionDropdowns, setShowPositionDropdowns] = useState({});
+    const [shiftsWithGuards, setShiftsWithGuards] = useState([]);  // กะที่มีคนจัดแล้ว
+    
+    // Contract file states
+    const [contractFile, setContractFile] = useState(null);
+    const [contractFileName, setContractFileName] = useState('');
+    const [uploadingFile, setUploadingFile] = useState(false);
+    const fileInputRef = useRef(null);
+
+    // Drag & Drop sensors - ต้องอยู่หลัง useState ทั้งหมด
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     useEffect(() => {
         const initializeForm = async () => {
@@ -22,19 +138,8 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                 // If creating new site and customer is selected, get next site code
                 if (!site && customer) {
                     try {
-                        const token = localStorage.getItem('token');
-                        const response = await fetch(`http://localhost:8000/api/sites/next-code/${customer.id}`, {
-                            headers: {
-                                'Authorization': `Bearer ${token}`
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            initialSiteCode = data.nextCode;
-                        } else {
-                            initialSiteCode = `${customer.code}.01`;
-                        }
+                        const response = await api.get(`/sites/next-code/${customer.id}`);
+                        initialSiteCode = response.data.nextCode;
                     } catch (error) {
                         console.error('Error fetching next site code:', error);
                         initialSiteCode = `${customer.code}.01`;
@@ -71,6 +176,10 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                 };
                 setFormData(initialData);
                 
+                // Set contract file name if exists
+                setContractFileName(site?.contractFileName || '');
+                setContractFile(null);
+                
                 // Initialize position searches with existing values
                 if (initialData.employmentDetails.length > 0) {
                     const searches = {};
@@ -91,24 +200,20 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const token = localStorage.getItem('token');
+                // Fetch services and shifts in parallel
+                const [servicesRes, shiftsRes] = await Promise.all([
+                    api.get('/services'),
+                    api.get('/shifts')
+                ]);
+                setServices(servicesRes.data);
+                setShifts(shiftsRes.data.filter(s => s.isActive));
                 
-                // Fetch services
-                const servicesResponse = await fetch('http://localhost:8000/api/services', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (servicesResponse.ok) {
-                    const servicesData = await servicesResponse.json();
-                    setServices(servicesData);
-                }
-                
-                // Fetch shifts
-                const shiftsResponse = await fetch('http://localhost:8000/api/shifts', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (shiftsResponse.ok) {
-                    const shiftsData = await shiftsResponse.json();
-                    setShifts(shiftsData.filter(s => s.isActive));
+                // ตรวจสอบว่ากะไหนมีคนจัดแล้ว (เฉพาะตอนแก้ไข)
+                if (site?.id) {
+                    const scheduleRes = await api.get(`/sites/${site.id}/has-schedule`);
+                    setShiftsWithGuards(scheduleRes.data.shiftsWithGuards || []);
+                } else {
+                    setShiftsWithGuards([]);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -118,7 +223,7 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
         if (isOpen) {
             fetchData();
         }
-    }, [isOpen]);
+    }, [isOpen, site?.id]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -161,32 +266,14 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
         
         // Get next site code for this customer
         try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:8000/api/sites/next-code/${customer.id}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                setFormData(prev => ({
-                    ...prev,
-                    customerId: customer.id,
-                    customerCode: customer.code,
-                    customerName: customer.name,
-                    siteCode: data.nextCode  // Auto-fill site code
-                }));
-            } else {
-                // Fallback if API fails
-                setFormData(prev => ({
-                    ...prev,
-                    customerId: customer.id,
-                    customerCode: customer.code,
-                    customerName: customer.name,
-                    siteCode: `${customer.code}.01`  // Default to .01
-                }));
-            }
+            const response = await api.get(`/sites/next-code/${customer.id}`);
+            setFormData(prev => ({
+                ...prev,
+                customerId: customer.id,
+                customerCode: customer.code,
+                customerName: customer.name,
+                siteCode: response.data.nextCode  // Auto-fill site code
+            }));
         } catch (error) {
             console.error('Error fetching next site code:', error);
             // Fallback to manual code
@@ -319,6 +406,21 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
         }));
     };
 
+    // Handle drag end for shift reordering
+    const handleShiftDragEnd = (event) => {
+        const { active, over } = event;
+        if (active.id !== over?.id) {
+            setFormData(prev => {
+                const oldIndex = prev.shiftAssignments.findIndex((_, i) => `shift-${i}` === active.id);
+                const newIndex = prev.shiftAssignments.findIndex((_, i) => `shift-${i}` === over.id);
+                return {
+                    ...prev,
+                    shiftAssignments: arrayMove(prev.shiftAssignments, oldIndex, newIndex)
+                };
+            });
+        }
+    };
+
     const handleShiftChange = (index, field, value) => {
         const updatedShifts = [...formData.shiftAssignments];
         
@@ -344,7 +446,7 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
         setFormData(prev => ({ ...prev, shiftAssignments: updatedShifts }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         if (e) e.preventDefault();
         
         // Validation
@@ -357,8 +459,153 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
         console.log('📤 Sending site data:', formData);
         console.log('📋 shiftAssignments detail:', JSON.stringify(formData.shiftAssignments, null, 2));
         
-        onSave(formData);
+        // Save site first
+        const savedSite = await onSave(formData);
+        
+        // Upload contract file if selected
+        if (contractFile && savedSite?.id) {
+            await handleUploadContractFile(savedSite.id);
+            // Reload page to refresh data after file upload
+            window.location.reload();
+            return;
+        }
+        
         onClose();
+    };
+    
+    // Contract file handlers
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file type
+            const allowedTypes = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowedTypes.includes(fileExt)) {
+                alert(`ไฟล์ไม่ถูกต้อง กรุณาอัปโหลดไฟล์ประเภท: ${allowedTypes.join(', ')}`);
+                return;
+            }
+            // Validate file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('ไฟล์ใหญ่เกินไป กรุณาอัปโหลดไฟล์ขนาดไม่เกิน 10MB');
+                return;
+            }
+            setContractFile(file);
+            setContractFileName(file.name);
+        }
+    };
+    
+    const handleUploadContractFile = async (siteId) => {
+        if (!contractFile) return;
+        
+        setUploadingFile(true);
+        try {
+            const formDataFile = new FormData();
+            formDataFile.append('file', contractFile);
+            
+            await api.post(`/sites/${siteId}/contract-file`, formDataFile, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            console.log('✅ Contract file uploaded successfully');
+        } catch (error) {
+            console.error('❌ Error uploading contract file:', error);
+            alert('เกิดข้อผิดพลาดในการอัปโหลดเอกสารสัญญา');
+        } finally {
+            setUploadingFile(false);
+        }
+    };
+    
+    const handleDownloadContractFile = async () => {
+        if (!formData.id) return;
+        
+        try {
+            const response = await api.get(`/sites/${formData.id}/contract-file`, {
+                responseType: 'blob'
+            });
+            
+            // Create download link
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', contractFileName || 'contract_file');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('❌ Error downloading contract file:', error);
+            alert('เกิดข้อผิดพลาดในการดาวน์โหลดเอกสารสัญญา');
+        }
+    };
+    
+    const handleViewContractFile = async () => {
+        if (!formData.id) return;
+        
+        try {
+            const response = await api.get(`/sites/${formData.id}/contract-file`, {
+                responseType: 'blob'
+            });
+            
+            // Determine MIME type from filename
+            const ext = (contractFileName || '').toLowerCase().split('.').pop();
+            let mimeType = 'application/octet-stream';
+            if (ext === 'pdf') mimeType = 'application/pdf';
+            else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+            else if (ext === 'png') mimeType = 'image/png';
+            else if (ext === 'doc') mimeType = 'application/msword';
+            else if (ext === 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            
+            // Create blob with correct type
+            const blob = new Blob([response.data], { type: mimeType });
+            const url = window.URL.createObjectURL(blob);
+            
+            // Open in new tab
+            const newTab = window.open(url, '_blank');
+            
+            // If popup blocked, show alert
+            if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
+                alert('กรุณาอนุญาต popup ใน browser หรือใช้ปุ่มดาวน์โหลดแทน');
+                // Fallback: download
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', contractFileName || 'contract_file');
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            }
+            
+            // Cleanup after a delay
+            setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+        } catch (error) {
+            console.error('❌ Error viewing contract file:', error);
+            alert('เกิดข้อผิดพลาดในการเปิดดูเอกสารสัญญา');
+        }
+    };
+    
+    const handleDeleteContractFile = async () => {
+        if (!formData.id) {
+            // If site not saved yet, just clear local state
+            setContractFile(null);
+            setContractFileName('');
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            return;
+        }
+        
+        if (!window.confirm('ต้องการลบเอกสารสัญญาหรือไม่?')) return;
+        
+        try {
+            await api.delete(`/sites/${formData.id}/contract-file`);
+            setContractFile(null);
+            setContractFileName('');
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            alert('ลบเอกสารสัญญาสำเร็จ');
+        } catch (error) {
+            console.error('❌ Error deleting contract file:', error);
+            alert('เกิดข้อผิดพลาดในการลบเอกสารสัญญา');
+        }
     };
 
     if (!isOpen) return null;
@@ -464,6 +711,84 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                     onChange={handleChange}
                                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                 />
+                            </div>
+                        </div>
+                        
+                        {/* Contract File Upload */}
+                        <div className="mt-4 pt-4 border-t">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                เอกสารสัญญา
+                            </label>
+                            <div className="flex items-center gap-3 flex-wrap">
+                                {/* Hidden file input */}
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                                    className="hidden"
+                                />
+                                
+                                {/* Upload button */}
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploadingFile}
+                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    {uploadingFile ? 'กำลังอัปโหลด...' : 'เลือกไฟล์'}
+                                </button>
+                                
+                                {/* File info */}
+                                {contractFileName && (
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                                        <FileText className="w-4 h-4 text-green-600" />
+                                        <span className="text-sm text-green-700 max-w-[200px] truncate" title={contractFileName}>
+                                            {contractFileName}
+                                        </span>
+                                        
+                                        {/* View button (only if site already saved and has file in server) */}
+                                        {formData.id && !contractFile && (
+                                            <button
+                                                type="button"
+                                                onClick={handleViewContractFile}
+                                                className="p-1 text-green-600 hover:text-green-800"
+                                                title="ดูเอกสาร"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        
+                                        {/* Download button (only if site already saved and has file in server) */}
+                                        {formData.id && !contractFile && (
+                                            <button
+                                                type="button"
+                                                onClick={handleDownloadContractFile}
+                                                className="p-1 text-blue-600 hover:text-blue-800"
+                                                title="ดาวน์โหลด"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        
+                                        {/* Delete button */}
+                                        <button
+                                            type="button"
+                                            onClick={handleDeleteContractFile}
+                                            className="p-1 text-red-500 hover:text-red-700"
+                                            title="ลบไฟล์"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+                                
+                                {!contractFileName && (
+                                    <span className="text-sm text-gray-500">
+                                        รองรับไฟล์ PDF, Word, รูปภาพ (ไม่เกิน 10MB)
+                                    </span>
+                                )}
                             </div>
                         </div>
                         
@@ -757,88 +1082,52 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                             </button>
                         </div>
                         
+                        {/* แจ้งเตือนถ้ามีกะที่มีคนจัดแล้ว */}
+                        {shiftsWithGuards.length > 0 && (
+                            <div className="mb-4 p-3 bg-yellow-100 border border-yellow-300 rounded-lg flex items-center gap-2">
+                                <span className="text-yellow-600">⚠️</span>
+                                <span className="text-sm text-yellow-800">กะที่มีการจัดคนแล้วไม่สามารถลบได้ (กรุณาลบตารางงานก่อน)</span>
+                            </div>
+                        )}
+                        
                         {shifts.length === 0 ? (
                             <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-amber-200">
                                 <p className="text-amber-600 font-medium">ไม่พบข้อมูลกะในระบบ</p>
                                 <p className="text-sm text-gray-500 mt-1">กรุณาเพิ่มข้อมูลกะในเมนู "กะงาน" ก่อน</p>
                             </div>
                         ) : (
-                            <div className="space-y-3">
-                                {formData.shiftAssignments && formData.shiftAssignments.length > 0 ? (
-                                    formData.shiftAssignments.map((shiftAssignment, index) => {
-                                        const selectedShift = shifts.find(s => s.id === parseInt(shiftAssignment.shiftId));
-                                        return (
-                                            <div key={index} className="bg-white rounded-lg shadow-sm border border-amber-200 p-4 hover:shadow-md transition-shadow">
-                                                <div className="flex items-center gap-3 flex-wrap">
-                                                    {/* Shift Selection */}
-                                                    <div className="flex items-center gap-2">
-                                                        <select
-                                                            value={shiftAssignment.shiftId || ''}
-                                                            onChange={(e) => handleShiftChange(index, 'shiftId', e.target.value)}
-                                                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 font-medium min-w-[140px]"
-                                                        >
-                                                            {shifts.map(shift => (
-                                                                <option key={shift.id} value={shift.id}>
-                                                                    {shift.shiftCode} - {shift.name}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                    
-                                                    {/* Editable Time Inputs */}
-                                                    <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-blue-100 px-3 py-1.5 rounded-lg border border-blue-200">
-                                                        <Clock className="w-4 h-4 text-blue-600" />
-                                                        <input
-                                                            type="time"
-                                                            value={shiftAssignment.startTime || selectedShift?.startTime || ''}
-                                                            onChange={(e) => handleShiftChange(index, 'startTime', e.target.value)}
-                                                            className="px-2 py-0.5 border border-blue-300 rounded text-sm focus:ring-1 focus:ring-blue-500 bg-white w-24"
-                                                            title="เวลาเข้า"
-                                                        />
-                                                        <span className="text-blue-600 font-bold">-</span>
-                                                        <input
-                                                            type="time"
-                                                            value={shiftAssignment.endTime || selectedShift?.endTime || ''}
-                                                            onChange={(e) => handleShiftChange(index, 'endTime', e.target.value)}
-                                                            className="px-2 py-0.5 border border-blue-300 rounded text-sm focus:ring-1 focus:ring-blue-500 bg-white w-24"
-                                                            title="เวลาออก"
-                                                        />
-                                                    </div>
-                                                    
-                                                    {/* Number of People */}
-                                                    <div className="flex items-center gap-2">
-                                                        <label className="text-xs text-gray-600 whitespace-nowrap">จำนวน:</label>
-                                                        <input
-                                                            type="number"
-                                                            value={shiftAssignment.numberOfPeople || 1}
-                                                            onChange={(e) => handleShiftChange(index, 'numberOfPeople', parseInt(e.target.value) || 1)}
-                                                            min="1"
-                                                            className="w-14 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:ring-1 focus:ring-amber-500"
-                                                        />
-                                                        <span className="text-xs text-gray-500">คน</span>
-                                                    </div>
-                                                    
-                                                    {/* Delete Button */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeShiftRow(index)}
-                                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-auto"
-                                                        title="ลบกะนี้"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleShiftDragEnd}>
+                                <SortableContext items={formData.shiftAssignments?.map((_, i) => `shift-${i}`) || []} strategy={verticalListSortingStrategy}>
+                                    <div className="space-y-3">
+                                        {formData.shiftAssignments && formData.shiftAssignments.length > 0 ? (
+                                            formData.shiftAssignments.map((shiftAssignment, index) => {
+                                                const selectedShift = shifts.find(s => s.id === parseInt(shiftAssignment.shiftId));
+                                                // ตรวจสอบว่ากะนี้มีคนจัดแล้วหรือไม่
+                                                const isShiftLocked = shiftsWithGuards.includes(shiftAssignment.shiftCode);
+                                                return (
+                                                    <SortableShiftItem
+                                                        key={`shift-${index}`}
+                                                        id={`shift-${index}`}
+                                                        index={index}
+                                                        shiftAssignment={shiftAssignment}
+                                                        selectedShift={selectedShift}
+                                                        isShiftLocked={isShiftLocked}
+                                                        shifts={shifts}
+                                                        handleShiftChange={handleShiftChange}
+                                                        removeShiftRow={removeShiftRow}
+                                                    />
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-amber-200">
+                                                <PlusCircle className="w-12 h-12 mx-auto text-amber-400 mb-3" />
+                                                <p className="text-gray-500 font-medium">ยังไม่มีการกำหนดกะ</p>
+                                                <p className="text-sm text-gray-400 mt-1">คลิกปุ่ม "เพิ่มกะ" เพื่อเริ่มต้น</p>
                                             </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-amber-200">
-                                        <PlusCircle className="w-12 h-12 mx-auto text-amber-400 mb-3" />
-                                        <p className="text-gray-500 font-medium">ยังไม่มีการกำหนดกะ</p>
-                                        <p className="text-sm text-gray-400 mt-1">คลิกปุ่ม "เพิ่มกะ" เพื่อเริ่มต้น</p>
+                                        )}
                                     </div>
-                                )}
-                            </div>
+                                </SortableContext>
+                            </DndContext>
                         )}
                     </div>
                 </div>
