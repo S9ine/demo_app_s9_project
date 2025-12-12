@@ -261,3 +261,80 @@ async def update_advance_status(
     await db.commit()
     
     return {"message": f"Status updated to {status}"}
+
+
+@router.get("/daily-advances/monthly-summary")
+async def get_monthly_summary(
+    start_date: str = Query(...),
+    end_date: str = Query(...),
+    type: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get monthly summary of daily advances
+    Returns aggregated data by guard and by day
+    """
+    try:
+        start = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format")
+    
+    # Build query
+    query = select(DailyAdvance).where(
+        DailyAdvance.date >= start,
+        DailyAdvance.date <= end
+    )
+    
+    if type:
+        query = query.where(DailyAdvance.type == type)
+    
+    # Non-admin users can only see their own documents
+    if current_user.role != "Admin":
+        query = query.where(DailyAdvance.createdBy == current_user.username)
+    
+    result = await db.execute(query)
+    docs = result.scalars().all()
+    
+    # Aggregate data
+    by_guard = {}  # { guardId: { guardId, total, byDay: { 1: amount, 2: amount, ... } } }
+    by_day = {}    # { 1: totalAmount, 2: totalAmount, ... }
+    total = 0
+    total_entries = 0
+    
+    for doc in docs:
+        day = doc.date.day
+        items = json.loads(doc.items) if doc.items else []
+        
+        for item in items:
+            guard_id = item.get('guardId')
+            amount = float(item.get('amount', 0))
+            
+            if not guard_id:
+                continue
+            
+            total += amount
+            total_entries += 1
+            
+            # Aggregate by guard
+            if guard_id not in by_guard:
+                by_guard[guard_id] = {
+                    'guardId': guard_id,
+                    'total': 0,
+                    'byDay': {}
+                }
+            
+            by_guard[guard_id]['total'] += amount
+            by_guard[guard_id]['byDay'][day] = by_guard[guard_id]['byDay'].get(day, 0) + amount
+            
+            # Aggregate by day
+            by_day[day] = by_day.get(day, 0) + amount
+    
+    return {
+        'total': total,
+        'totalEntries': total_entries,
+        'byGuard': list(by_guard.values()),
+        'byDay': by_day
+    }
+

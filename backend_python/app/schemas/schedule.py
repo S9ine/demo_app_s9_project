@@ -3,7 +3,7 @@ Schedule Schemas
 Pydantic schemas สำหรับ API ตารางงาน
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import date, datetime
 
 
@@ -13,6 +13,8 @@ class GuardInShift(BaseModel):
     """พนักงานที่ถูกจัดเข้ากะ"""
     id: int = Field(..., description="Guard ID")
     guardId: Optional[str] = None
+    staffId: Optional[str] = None
+    code: Optional[str] = None
     firstName: str
     lastName: str
     position: str
@@ -25,11 +27,8 @@ class GuardInShift(BaseModel):
     pointBonus: float = Field(0.0, ge=0)
     otherAllowance: float = Field(0.0, ge=0)
 
-
-class ShiftsData(BaseModel):
-    """ข้อมูลกะงาน"""
-    day: List[GuardInShift] = Field(default_factory=list, description="กะกลางวัน")  # type: ignore
-    night: List[GuardInShift] = Field(default_factory=list, description="กะกลางคืน")  # type: ignore
+    class Config:
+        extra = "allow"  # อนุญาตให้มี field เพิ่มเติม
 
 
 # ========== SCHEDULE SCHEMAS ==========
@@ -39,13 +38,13 @@ class ScheduleCreate(BaseModel):
     scheduleDate: date = Field(..., description="วันที่จัดตารางงาน")
     siteId: int = Field(..., description="ID ของหน่วยงาน")
     siteName: str = Field(..., description="ชื่อหน่วยงาน")
-    shifts: ShiftsData = Field(..., description="ข้อมูลกะงาน")
+    shifts: Dict[str, List[Any]] = Field(..., description="ข้อมูลกะงาน - key คือ shiftCode")
     remarks: Optional[str] = Field(None, description="หมายเหตุ")
 
 
 class ScheduleUpdate(BaseModel):
     """อัปเดตตารางงาน"""
-    shifts: Optional[ShiftsData] = None
+    shifts: Optional[Dict[str, List[Any]]] = None
     remarks: Optional[str] = None
     isActive: Optional[bool] = None
 
@@ -56,7 +55,7 @@ class ScheduleResponse(BaseModel):
     scheduleDate: date
     siteId: int
     siteName: str
-    shifts: ShiftsData
+    shifts: Dict[str, List[Any]]
     totalGuardsDay: int
     totalGuardsNight: int
     totalGuards: int

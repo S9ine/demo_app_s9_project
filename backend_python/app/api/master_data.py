@@ -2540,24 +2540,70 @@ async def delete_service(service_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/shifts", response_model=List[ShiftResponse])
 async def get_shifts(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Shift).order_by(Shift.shiftCode))
-    return result.scalars().all()
+    shifts = result.scalars().all()
+    return [
+        ShiftResponse(
+            id=s.id,
+            shiftCode=s.shiftCode,
+            name=s.name,
+            startTime=s.startTime.strftime("%H:%M") if s.startTime else None,
+            endTime=s.endTime.strftime("%H:%M") if s.endTime else None,
+            isActive=s.isActive,
+            createdAt=s.createdAt
+        ) for s in shifts
+    ]
 
 
 @router.post("/shifts", response_model=ShiftResponse, status_code=201)
 async def create_shift(shift: ShiftCreate, db: AsyncSession = Depends(get_db)):
+    from datetime import time as time_type
+    
     result = await db.execute(select(Shift).where(Shift.shiftCode == shift.shiftCode))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="รหัสกะซ้ำ")
     
-    new_shift = Shift(**shift.model_dump())
+    # Parse time strings to time objects
+    start_time = None
+    end_time = None
+    if shift.startTime:
+        try:
+            parts = shift.startTime.split(":")
+            start_time = time_type(int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail="รูปแบบเวลาเริ่มกะไม่ถูกต้อง (ใช้ HH:MM)")
+    if shift.endTime:
+        try:
+            parts = shift.endTime.split(":")
+            end_time = time_type(int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail="รูปแบบเวลาสิ้นสุดกะไม่ถูกต้อง (ใช้ HH:MM)")
+    
+    new_shift = Shift(
+        shiftCode=shift.shiftCode,
+        name=shift.name,
+        startTime=start_time,
+        endTime=end_time,
+        isActive=shift.isActive
+    )
     db.add(new_shift)
     await db.commit()
     await db.refresh(new_shift)
-    return new_shift
+    
+    return ShiftResponse(
+        id=new_shift.id,
+        shiftCode=new_shift.shiftCode,
+        name=new_shift.name,
+        startTime=new_shift.startTime.strftime("%H:%M") if new_shift.startTime else None,
+        endTime=new_shift.endTime.strftime("%H:%M") if new_shift.endTime else None,
+        isActive=new_shift.isActive,
+        createdAt=new_shift.createdAt
+    )
 
 
 @router.put("/shifts/{shift_id}", response_model=ShiftResponse)
 async def update_shift(shift_id: int, shift: ShiftUpdate, db: AsyncSession = Depends(get_db)):
+    from datetime import time as time_type
+    
     result = await db.execute(select(Shift).where(Shift.id == shift_id))
     db_shift = result.scalar_one_or_none()
     if not db_shift:
@@ -2571,12 +2617,33 @@ async def update_shift(shift_id: int, shift: ShiftUpdate, db: AsyncSession = Dep
     
     if shift.name is not None:
         db_shift.name = shift.name
+    if shift.startTime is not None:
+        try:
+            parts = shift.startTime.split(":")
+            db_shift.startTime = time_type(int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail="รูปแบบเวลาเริ่มกะไม่ถูกต้อง (ใช้ HH:MM)")
+    if shift.endTime is not None:
+        try:
+            parts = shift.endTime.split(":")
+            db_shift.endTime = time_type(int(parts[0]), int(parts[1]))
+        except (ValueError, IndexError):
+            raise HTTPException(status_code=400, detail="รูปแบบเวลาสิ้นสุดกะไม่ถูกต้อง (ใช้ HH:MM)")
     if shift.isActive is not None:
         db_shift.isActive = shift.isActive
     
     await db.commit()
     await db.refresh(db_shift)
-    return db_shift
+    
+    return ShiftResponse(
+        id=db_shift.id,
+        shiftCode=db_shift.shiftCode,
+        name=db_shift.name,
+        startTime=db_shift.startTime.strftime("%H:%M") if db_shift.startTime else None,
+        endTime=db_shift.endTime.strftime("%H:%M") if db_shift.endTime else None,
+        isActive=db_shift.isActive,
+        createdAt=db_shift.createdAt
+    )
 
 
 @router.delete("/shifts/{shift_id}")

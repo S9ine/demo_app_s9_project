@@ -152,6 +152,15 @@ export default function EntityHistoryModal({ isOpen, onClose, entityType, entity
                                     <span className="text-gray-600">จำนวน:</span> <span className="font-bold text-amber-600">{shift.numberOfPeople}</span> คน
                                 </div>
                             </div>
+                            {/* แสดงเวลากะถ้ามี */}
+                            {(shift.startTime || shift.endTime) && (
+                                <div className="text-xs text-gray-500 mt-1 flex items-center gap-2">
+                                    <span>🕐</span>
+                                    <span>
+                                        {shift.startTime ? shift.startTime.substring(0, 5) : '--:--'} - {shift.endTime ? shift.endTime.substring(0, 5) : '--:--'}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     ))}
                     <div className="text-sm font-semibold text-gray-700 mt-2">

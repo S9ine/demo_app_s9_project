@@ -84,6 +84,7 @@ async def get_schedules_by_date(  # type: ignore
     return {  # type: ignore
         schedule_date.isoformat(): {
             str(s.siteId): {
+                "scheduleId": s.id,
                 "siteId": s.siteId,
                 "siteName": s.siteName,
                 "shifts": json.loads(s.shifts)  # type: ignore
@@ -135,8 +136,8 @@ async def create_schedule(  # type: ignore
 ):
     """สร้างตารางงานใหม่"""
     
-    # ตรวจสอบว่ามีตารางงานของหน่วยงานนี้ในวันนี้หรือยัง
-    existing = await db.execute(
+    # ตรวจสอบว่ามีตารางงานของหน่วยงานนี้ในวันนี้หรือยัง (ทั้ง active และ inactive)
+    existing_result = await db.execute(
         select(Schedule)
         .where(
             and_(
@@ -145,19 +146,44 @@ async def create_schedule(  # type: ignore
             )
         )
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=400,
-            detail="มีตารางงานของหน่วยงานนี้ในวันนี้แล้ว ใช้ PUT เพื่ออัปเดต"
-        )
+    existing = existing_result.scalar_one_or_none()
     
-    # คำนวณจำนวนพนักงาน
-    total_day = len(schedule_data.shifts.day)
-    total_night = len(schedule_data.shifts.night)
-    total = total_day + total_night
+    if existing:
+        if existing.isActive:
+            # มี schedule active อยู่แล้ว
+            raise HTTPException(
+                status_code=400,
+                detail="มีตารางงานของหน่วยงานนี้ในวันนี้แล้ว ใช้ PUT เพื่ออัปเดต"
+            )
+        else:
+            # มี schedule แต่ถูก soft delete ไปแล้ว -> reactivate และ update
+            total_guards = 0
+            for shift_code, guards in schedule_data.shifts.items():
+                total_guards += len(guards)
+            
+            existing.shifts = json.dumps(schedule_data.shifts)  # type: ignore[assignment]
+            existing.siteName = schedule_data.siteName  # type: ignore[assignment]
+            existing.totalGuards = total_guards  # type: ignore[assignment]
+            existing.isActive = True  # type: ignore[assignment]
+            existing.remarks = schedule_data.remarks  # type: ignore[assignment]
+            
+            await db.commit()
+            await db.refresh(existing)
+            
+            return {  # type: ignore
+                "id": existing.id,
+                "scheduleDate": existing.scheduleDate,
+                "siteId": existing.siteId,
+                "message": "กู้คืนและอัปเดตตารางงานสำเร็จ"
+            }
+    
+    # คำนวณจำนวนพนักงานทั้งหมด (รองรับ dynamic shifts)
+    total_guards = 0
+    for shift_code, guards in schedule_data.shifts.items():
+        total_guards += len(guards)
     
     # แปลง shifts เป็น JSON
-    shifts_json = schedule_data.shifts.model_dump_json()
+    shifts_json = json.dumps(schedule_data.shifts)
     
     # สร้าง record ใหม่
     new_schedule = Schedule(
@@ -165,9 +191,9 @@ async def create_schedule(  # type: ignore
         siteId=schedule_data.siteId,
         siteName=schedule_data.siteName,
         shifts=shifts_json,
-        totalGuardsDay=total_day,
-        totalGuardsNight=total_night,
-        totalGuards=total,
+        totalGuardsDay=0,  # Legacy field - ไม่ใช้แล้ว
+        totalGuardsNight=0,  # Legacy field - ไม่ใช้แล้ว
+        totalGuards=total_guards,
         createdBy=current_user.id,
         remarks=schedule_data.remarks
     )
@@ -203,14 +229,15 @@ async def update_schedule(  # type: ignore
     
     # อัปเดตข้อมูล
     if schedule_data.shifts is not None:
-        total_day = len(schedule_data.shifts.day)
-        total_night = len(schedule_data.shifts.night)
-        total = total_day + total_night
+        # คำนวณจำนวนพนักงานทั้งหมด (รองรับ dynamic shifts)
+        total_guards = 0
+        for shift_code, guards in schedule_data.shifts.items():
+            total_guards += len(guards)
         
-        schedule.shifts = schedule_data.shifts.model_dump_json()  # type: ignore[assignment]
-        schedule.totalGuardsDay = total_day  # type: ignore[assignment]
-        schedule.totalGuardsNight = total_night  # type: ignore[assignment]
-        schedule.totalGuards = total  # type: ignore[assignment]
+        schedule.shifts = json.dumps(schedule_data.shifts)  # type: ignore[assignment]
+        schedule.totalGuardsDay = 0  # Legacy field  # type: ignore[assignment]
+        schedule.totalGuardsNight = 0  # Legacy field  # type: ignore[assignment]
+        schedule.totalGuards = total_guards  # type: ignore[assignment]
     
     if schedule_data.remarks is not None:
         schedule.remarks = schedule_data.remarks  # type: ignore[assignment]

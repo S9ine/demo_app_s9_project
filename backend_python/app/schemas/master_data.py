@@ -148,6 +148,8 @@ class ShiftAssignment(BaseModel):
     shiftId: int = Field(..., description="ID ของกะ")
     shiftCode: str = Field(..., description="รหัสกะ")
     shiftName: str = Field(..., description="ชื่อกะ")
+    startTime: Optional[str] = Field(None, description="เวลาเริ่มกะ (HH:MM)")
+    endTime: Optional[str] = Field(None, description="เวลาสิ้นสุดกะ (HH:MM)")
     numberOfPeople: int = Field(..., description="จำนวนคน", ge=1)
 
 
@@ -649,12 +651,16 @@ class ServiceResponse(BaseModel):
 class ShiftCreate(BaseModel):
     shiftCode: str = Field(..., min_length=1)
     name: str = Field(..., min_length=1)
+    startTime: Optional[str] = Field(None, description="เวลาเริ่มกะ (HH:MM)")
+    endTime: Optional[str] = Field(None, description="เวลาสิ้นสุดกะ (HH:MM)")
     isActive: bool = True
 
 
 class ShiftUpdate(BaseModel):
     shiftCode: Optional[str] = None
     name: Optional[str] = None
+    startTime: Optional[str] = None
+    endTime: Optional[str] = None
     isActive: Optional[bool] = None
 
 
@@ -662,5 +668,7 @@ class ShiftResponse(BaseModel):
     id: int
     shiftCode: str
     name: str
+    startTime: Optional[str] = None
+    endTime: Optional[str] = None
     isActive: bool
     createdAt: Optional[datetime] = None

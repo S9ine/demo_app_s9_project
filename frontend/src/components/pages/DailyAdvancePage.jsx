@@ -1,450 +1,746 @@
 // frontend/src/components/pages/DailyAdvancePage.jsx
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../config/api';
-import { FullPageLoading } from '../common/LoadingSpinner';
-import { PlusCircle, Edit, Trash2, X, FileText, User, Clock, Share2, Download } from 'lucide-react';
-
-// Component for Creating/Editing Documents
-function AdvanceBatchModal({ isOpen, onClose, onSave, guards, document, advanceType, currentUser, getUserFullName }) {
-    const [docData, setDocData] = useState({});
-    const [entryRows, setEntryRows] = useState([]);
-    const [searchTerms, setSearchTerms] = useState({});
-    const [activeDropdown, setActiveDropdown] = useState(null);
-
-    useEffect(() => {
-        if (isOpen) {
-            if (document) {
-                setDocData(document);
-                const rows = document.items.map(item => {
-                    const guard = guards.find(g => g.guardId === item.guardId);
-                    if (guard) {
-                        setSearchTerms(prev => ({ ...prev, [item.guardId]: `${guard.guardId} - ${guard.name}` }));
-                    }
-                    return { tempId: item.guardId, ...item };
-                });
-                setEntryRows(rows);
-            } else {
-                const today = new Date();
-                const dateStr = today.toISOString().split('T')[0];
-                const prefix = advanceType === 'advance' ? 'ADV' : 'CASH';
-                const docNumber = `${prefix}-${dateStr.replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
-
-                setDocData({ docNumber, date: dateStr, type: advanceType, createdBy: currentUser.username, status: "Draft" });
-                setEntryRows([{ tempId: Date.now(), guardId: '', amount: 0, reason: '' }]);
-                setSearchTerms({});
-            }
-        }
-    }, [isOpen, document, guards, advanceType, currentUser]);
-
-    const summary = useMemo(() => {
-        const totalAmount = entryRows.reduce((sum, row) => {
-            const amount = parseFloat(row.amount);
-            return sum + (isNaN(amount) ? 0 : amount);
-        }, 0);
-        const totalItems = entryRows.filter(row => row.guardId && parseFloat(row.amount) > 0).length;
-        return { totalAmount, totalItems };
-    }, [entryRows]);
-
-    const handleAddRow = () => {
-        setEntryRows([...entryRows, { tempId: Date.now(), guardId: '', amount: 0, reason: '' }]);
-    };
-
-    const handleRemoveRow = (tempId) => {
-        setEntryRows(entryRows.filter(row => row.tempId !== tempId));
-    };
-
-    const handleRowChange = (tempId, field, value) => {
-        setEntryRows(entryRows.map(row => row.tempId === tempId ? { ...row, [field]: value } : row));
-    };
-
-    const handleGuardSearch = (tempId, term) => {
-        setSearchTerms({ ...searchTerms, [tempId]: term });
-        handleRowChange(tempId, 'guardId', '');
-        setActiveDropdown(tempId);
-    };
-
-    const handleGuardSelect = (tempId, guard) => {
-        handleRowChange(tempId, 'guardId', guard.guardId);
-        setSearchTerms({ ...searchTerms, [tempId]: `${guard.guardId} - ${guard.name}` });
-        setActiveDropdown(null);
-    };
-
-    const handleSave = (status) => {
-        const validItems = entryRows
-            .filter(row => row.guardId && parseFloat(row.amount) > 0)
-            .map(({ tempId, ...item }) => ({
-                ...item,
-                amount: parseFloat(item.amount)
-            }));
-
-        if (validItems.length === 0) {
-            alert("กรุณากรอกข้อมูลให้ครบถ้วนอย่างน้อย 1 รายการ");
-            return;
-        }
-
-        const finalDocument = {
-            docNumber: docData.docNumber,
-            date: docData.date,
-            type: docData.type,
-            status: status,
-            items: validItems,
-        };
-
-        onSave(finalDocument, document?.id);
-        onClose();
-    };
-
-    const getFilteredGuards = useCallback((tempId) => {
-        const term = searchTerms[tempId]?.toLowerCase() || '';
-        if (!term) return [];
-        return guards.filter(g =>
-            g.name.toLowerCase().includes(term) ||
-            g.guardId.toLowerCase().includes(term)
-        ).slice(0, 5);
-    }, [guards, searchTerms]);
-
-    if (!isOpen) return null;
-
-    const creatorName = document
-        ? getUserFullName(document.createdBy)
-        : `${currentUser.firstName} ${currentUser.lastName}`;
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center border-b pb-3 mb-4">
-                    <h2 className="text-xl font-bold">{document ? 'แก้ไขเอกสารเบิก' : 'สร้างเอกสารเบิกใหม่'}</h2>
-                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-gray-500 hover:text-gray-600" /></button>
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-4 text-sm">
-                    <div><span className="font-semibold">เลขที่เอกสาร:</span> {docData.docNumber}</div>
-                    <div><span className="font-semibold">วันที่:</span> {new Date(docData.date || Date.now()).toLocaleDateString('th-TH')}</div>
-                    <div className="col-span-2"><span className="font-semibold">ผู้สร้าง:</span> {creatorName}</div>
-                </div>
-                <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-3 bg-gray-100 p-3 rounded-lg">
-                    {entryRows.map((row, index) => (
-                        <div key={row.tempId} className="bg-white p-4 rounded-lg shadow-sm border relative">
-                            <div className="flex items-start space-x-4">
-                                <span className="font-bold text-lg text-indigo-600 mt-2">{index + 1}.</span>
-                                <div className="flex-1 grid grid-cols-1 md:grid-cols-5 gap-3">
-                                    <div className="relative md:col-span-2">
-                                        <label className="text-xs font-medium text-gray-600">พนักงาน (รหัส หรือ ชื่อ)</label>
-                                        <input
-                                            type="text"
-                                            placeholder="ค้นหาพนักงาน..."
-                                            value={searchTerms[row.tempId] || (guards.find(g => g.guardId === row.guardId) ? `${guards.find(g => g.guardId === row.guardId).guardId} - ${guards.find(g => g.guardId === row.guardId).name}` : '')}
-                                            onChange={(e) => handleGuardSearch(row.tempId, e.target.value)}
-                                            onFocus={() => setActiveDropdown(row.tempId)}
-                                            onBlur={() => setTimeout(() => setActiveDropdown(null), 200)}
-                                            className="w-full p-2 border rounded-md mt-1"
-                                        />
-                                        {activeDropdown === row.tempId && getFilteredGuards(row.tempId).length > 0 && (
-                                            <div className="absolute z-20 w-full bg-white border rounded-md mt-1 shadow-lg max-h-48 overflow-y-auto">
-                                                {getFilteredGuards(row.tempId).map(guard => (
-                                                    <div key={guard.id} onMouseDown={() => handleGuardSelect(row.tempId, guard)} className="p-2 hover:bg-indigo-100 cursor-pointer text-sm">
-                                                        {guard.guardId} - {guard.name}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="md:col-span-1">
-                                        <label className="text-xs font-medium text-gray-600">จำนวนเงิน</label>
-                                        <input
-                                            type="number"
-                                            value={row.amount}
-                                            onChange={(e) => handleRowChange(row.tempId, 'amount', e.target.value)}
-                                            className="w-full p-2 border rounded-md mt-1"
-                                            placeholder="0.00"
-                                        />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs font-medium text-gray-600">เหตุผลการเบิก</label>
-                                        <input
-                                            type="text"
-                                            value={row.reason}
-                                            onChange={(e) => handleRowChange(row.tempId, 'reason', e.target.value)}
-                                            className="w-full p-2 border rounded-md mt-1"
-                                            placeholder="เช่น ค่าเดินทาง, เบิกล่วงหน้า"
-                                        />
-                                    </div>
-                                </div>
-                                <button onClick={() => handleRemoveRow(row.tempId)} className="text-red-500 hover:text-red-700 mt-2 p-1">
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                    <button onClick={handleAddRow} className="w-full flex items-center justify-center mt-2 px-3 py-2 bg-white text-indigo-600 rounded-lg hover:bg-indigo-50 border-2 border-dashed border-gray-300 transition-colors text-sm font-semibold">
-                        <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มรายการ
-                    </button>
-                </div>
-                <div className="mt-4 pt-4 border-t flex justify-between items-center font-semibold">
-                    <p className="text-gray-600">
-                        ทั้งหมด: <span className="text-indigo-600">{summary.totalItems}</span> รายการ
-                    </p>
-                    <p className="text-gray-800 text-lg">
-                        ยอดรวม: <span className="text-green-600">{summary.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span> บาท
-                    </p>
-                </div>
-                <div className="mt-6 flex justify-end space-x-3">
-                    <button type="button" onClick={() => handleSave('Draft')} className="px-5 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 font-semibold">บันทึกแบบร่าง</button>
-                    <button type="button" onClick={() => handleSave('Pending')} className="px-5 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-semibold">ยืนยันส่งเบิก</button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// Component for Previewing and Saving Image (Reuse with minor prop updates)
-function AdvanceDocumentPreviewModal({ isOpen, onClose, document, getGuardName, getUserFullName }) {
-    const [isLoading, setIsLoading] = useState(false);
-    const [isScriptReady, setIsScriptReady] = useState(false);
-
-    useEffect(() => {
-        if (isOpen && !window.html2canvas) {
-            const scriptId = 'html2canvas-script';
-            let script = document.getElementById(scriptId);
-
-            if (!script) {
-                script = document.createElement('script');
-                script.id = scriptId;
-                script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-                script.async = true;
-                script.onload = () => setIsScriptReady(true);
-                document.body.appendChild(script);
-            }
-        } else if (window.html2canvas) {
-            setIsScriptReady(true);
-        }
-    }, [isOpen]);
-
-    const handleSaveImage = () => {
-        setIsLoading(true);
-        const captureElement = document.getElementById('capture-area');
-        window.html2canvas(captureElement)
-            .then(canvas => {
-                const image = canvas.toDataURL('image/png');
-                const link = document.createElement('a');
-                link.href = image;
-                link.download = `${document.docNumber}.png`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                setIsLoading(false);
-            })
-            .catch(() => setIsLoading(false));
-    };
-
-    if (!isOpen || !document || !document.items) return null;
-
-    const totalAmount = document.items.reduce((sum, item) => sum + item.amount, 0);
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center border-b pb-3 mb-4">
-                    <h2 className="text-xl font-bold">ตัวอย่างเอกสาร</h2>
-                    <button type="button" onClick={onClose}><X className="w-6 h-6 text-gray-500" /></button>
-                </div>
-                <div id="capture-area" className="bg-white p-4 border rounded-md mb-4 flex-1 overflow-y-auto">
-                    <h3 className="text-lg font-bold text-center mb-2">รายการเบิกจ่าย</h3>
-                    <div className="grid grid-cols-2 gap-x-4 text-sm mb-4">
-                        <p><span className="font-semibold">เลขที่เอกสาร:</span> {document.docNumber}</p>
-                        <p><span className="font-semibold">ผู้สร้าง:</span> {getUserFullName(document.createdBy)}</p>
-                        <p><span className="font-semibold">วันที่:</span> {new Date(document.date).toLocaleDateString('th-TH')}</p>
-                        <p><span className="font-semibold">ประเภท:</span> {document.type === 'advance' ? 'เบิกรายวัน (หักเงินเดือน)' : 'เงินควง (จ่ายเงินสด)'}</p>
-                    </div>
-                    <table className="w-full text-sm">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="p-2 text-left">#</th>
-                                <th className="p-2 text-left">พนักงาน</th>
-                                <th className="p-2 text-right">จำนวนเงิน</th>
-                                <th className="p-2 text-left">หมายเหตุ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {document.items.map((item, index) => (
-                                <tr key={index} className="border-b">
-                                    <td className="p-2">{index + 1}</td>
-                                    <td className="p-2">{getGuardName(item.guardId)}</td>
-                                    <td className="p-2 text-right">{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                    <td className="p-2">{item.reason}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot>
-                            <tr className="font-bold bg-gray-50">
-                                <td colSpan="2" className="p-2 text-right">ยอดรวม</td>
-                                <td className="p-2 text-right">{totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-                <div className="flex justify-end">
-                    <button onClick={handleSaveImage} disabled={!isScriptReady || isLoading} className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400">
-                        <Download className="w-5 h-5 mr-2" />
-                        {isLoading ? 'กำลังสร้างรูป...' : 'บันทึกเป็นรูปภาพ'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
+import { 
+    Trash2, ChevronLeft, ChevronRight,
+    Save, Search, X, Users, Wallet,
+    TrendingUp, Download, Calendar
+} from 'lucide-react';
+import { useToast } from '../../hooks/useToast';
 
 export default function DailyAdvancePage({ user }) {
-    const [documents, setDocuments] = useState([]);
+    const toast = useToast();
+    
+    // วันที่ปัจจุบัน
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState(new Date());
+    
+    // ประเภทการเบิก
+    const [advanceType, setAdvanceType] = useState('advance'); // 'advance' | 'cash'
+    
+    // ข้อมูล
     const [guards, setGuards] = useState([]);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingDocument, setEditingDocument] = useState(null);
-    const [activeTab, setActiveTab] = useState('advance');
-    const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
-    const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
-    const [documentToPreview, setDocumentToPreview] = useState(null);
+    const [entries, setEntries] = useState([]); // รายการเบิกของวันที่เลือก
+    const [monthlyData, setMonthlyData] = useState({}); // ข้อมูลทั้งเดือน
     const [isLoading, setIsLoading] = useState(true);
-    const [users, setUsers] = useState([]);
-
-    const fetchData = async () => {
-        setIsLoading(true);
-        try {
-            const [docsRes, guardsRes, usersRes] = await Promise.all([
-                api.get('/daily-advances', { params: { date: currentDate, type: activeTab } }),
-                api.get('/guards'),
-                api.get('/users')
-            ]);
-
-            setDocuments(docsRes.data);
-            setGuards(guardsRes.data);
-            setUsers(usersRes.data);
-        } catch (error) {
-            console.error('Error fetching data:', error);
-        } finally {
-            setIsLoading(false);
-        }
+    const [isSaving, setIsSaving] = useState(false);
+    
+    // UI States
+    const [showMonthlySummary, setShowMonthlySummary] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showGuardDropdown, setShowGuardDropdown] = useState(false);
+    
+    // Format date
+    const formatDateKey = (date) => {
+        return date.toISOString().split('T')[0];
+    };
+    
+    const formatThaiDate = (date) => {
+        return date.toLocaleDateString('th-TH', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
     };
 
+    const formatThaiMonth = (date) => {
+        return date.toLocaleDateString('th-TH', {
+            year: 'numeric',
+            month: 'long'
+        });
+    };
+
+    // Fetch guards
     useEffect(() => {
-        if (user) fetchData();
-    }, [currentDate, activeTab, user]);
+        const fetchGuards = async () => {
+            try {
+                const res = await api.get('/guards');
+                setGuards(res.data.map(g => ({
+                    ...g,
+                    name: `${g.firstName} ${g.lastName}`
+                })));
+            } catch (error) {
+                console.error('Error fetching guards:', error);
+            }
+        };
+        fetchGuards();
+    }, []);
 
-    const handleSaveDocument = async (docData, docId) => {
+    // Fetch data for selected date
+    useEffect(() => {
+        const fetchDailyData = async () => {
+            setIsLoading(true);
+            try {
+                const dateStr = formatDateKey(selectedDate);
+                const res = await api.get('/daily-advances', {
+                    params: { date: dateStr, type: advanceType }
+                });
+                
+                // แปลงข้อมูลจาก documents เป็น entries และรวม guardId ที่ซ้ำกัน
+                const entriesMap = new Map();
+                res.data.forEach(doc => {
+                    doc.items.forEach(item => {
+                        const key = item.guardId;
+                        if (entriesMap.has(key)) {
+                            // รวมยอดเงินถ้ามีซ้ำ
+                            const existing = entriesMap.get(key);
+                            existing.amount += item.amount;
+                            if (item.reason && !existing.reason.includes(item.reason)) {
+                                existing.reason = existing.reason 
+                                    ? `${existing.reason}, ${item.reason}` 
+                                    : item.reason;
+                            }
+                        } else {
+                            entriesMap.set(key, {
+                                id: `${doc.id}-${item.guardId}`,
+                                docId: doc.id,
+                                guardId: item.guardId,
+                                amount: item.amount,
+                                reason: item.reason || '',
+                                status: doc.status
+                            });
+                        }
+                    });
+                });
+                setEntries(Array.from(entriesMap.values()));
+            } catch (error) {
+                console.error('Error fetching daily data:', error);
+                setEntries([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        
+        if (user) fetchDailyData();
+    }, [selectedDate, advanceType, user]);
+
+    // Fetch monthly summary
+    useEffect(() => {
+        const fetchMonthlyData = async () => {
+            setIsLoading(true);
+            try {
+                const year = currentMonth.getFullYear();
+                const month = currentMonth.getMonth();
+                const startDate = new Date(year, month, 1);
+                const endDate = new Date(year, month + 1, 0);
+                
+                const res = await api.get('/daily-advances/monthly-summary', {
+                    params: {
+                        start_date: formatDateKey(startDate),
+                        end_date: formatDateKey(endDate),
+                        type: advanceType
+                    }
+                });
+                setMonthlyData(res.data || {});
+            } catch (error) {
+                console.error('Error fetching monthly data:', error);
+                setMonthlyData({});
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        
+        if (showMonthlySummary && user) fetchMonthlyData();
+    }, [currentMonth, advanceType, showMonthlySummary, user]);
+
+    // Navigation
+    const goToPrevDay = () => {
+        const newDate = new Date(selectedDate);
+        newDate.setDate(newDate.getDate() - 1);
+        setSelectedDate(newDate);
+    };
+
+    const goToNextDay = () => {
+        const newDate = new Date(selectedDate);
+        newDate.setDate(newDate.getDate() + 1);
+        setSelectedDate(newDate);
+    };
+
+    const goToToday = () => {
+        setSelectedDate(new Date());
+    };
+
+    const goToPrevMonth = () => {
+        const newDate = new Date(currentMonth);
+        newDate.setMonth(newDate.getMonth() - 1);
+        setCurrentMonth(newDate);
+    };
+
+    const goToNextMonth = () => {
+        const newDate = new Date(currentMonth);
+        newDate.setMonth(newDate.getMonth() + 1);
+        setCurrentMonth(newDate);
+    };
+
+    // Entry management
+    const addEntry = (guard) => {
+        // ตรวจสอบว่ามีอยู่แล้วหรือไม่
+        if (entries.find(e => e.guardId === guard.guardId)) {
+            toast.warning('พนักงานคนนี้มีรายการเบิกแล้ววันนี้');
+            return;
+        }
+        
+        const newEntry = {
+            id: `new-${Date.now()}`,
+            guardId: guard.guardId,
+            amount: 0,
+            reason: '',
+            isNew: true
+        };
+        setEntries([...entries, newEntry]);
+        setSearchTerm('');
+        setShowGuardDropdown(false);
+    };
+
+    const updateEntry = (id, field, value) => {
+        setEntries(entries.map(e => 
+            e.id === id ? { ...e, [field]: value } : e
+        ));
+    };
+
+    const removeEntry = (id) => {
+        setEntries(entries.filter(e => e.id !== id));
+    };
+
+    // Save
+    const handleSave = async () => {
+        const validEntries = entries.filter(e => e.guardId && e.amount > 0);
+        
+        if (validEntries.length === 0) {
+            toast.warning('กรุณากรอกข้อมูลอย่างน้อย 1 รายการ');
+            return;
+        }
+        
+        setIsSaving(true);
         try {
-            if (docId) {
-                await api.put(`/daily-advances/${docId}`, docData);
-            } else {
-                await api.post('/daily-advances', docData);
-            }
-            await fetchData();
-            if (docData.status === 'Pending') {
-                const updatedDoc = documents.find(d => d.docNumber === docData.docNumber);
-                if (updatedDoc) handleOpenPreview(updatedDoc);
-            }
+            const dateStr = formatDateKey(selectedDate);
+            const prefix = advanceType === 'advance' ? 'ADV' : 'CASH';
+            const docNumber = `${prefix}-${dateStr.replace(/-/g, '')}-${Date.now().toString().slice(-4)}`;
+            
+            const payload = {
+                docNumber,
+                date: dateStr,
+                type: advanceType,
+                status: 'Pending',
+                items: validEntries.map(e => ({
+                    guardId: e.guardId,
+                    amount: parseFloat(e.amount),
+                    reason: e.reason || ''
+                }))
+            };
+            
+            await api.post('/daily-advances', payload);
+            toast.success('บันทึกรายการเบิกจ่ายสำเร็จ');
+            
+            // Refresh data
+            const res = await api.get('/daily-advances', {
+                params: { date: dateStr, type: advanceType }
+            });
+            const entriesMap = new Map();
+            res.data.forEach(doc => {
+                doc.items.forEach(item => {
+                    const key = item.guardId;
+                    if (entriesMap.has(key)) {
+                        const existing = entriesMap.get(key);
+                        existing.amount += item.amount;
+                    } else {
+                        entriesMap.set(key, {
+                            id: `${doc.id}-${item.guardId}`,
+                            docId: doc.id,
+                            guardId: item.guardId,
+                            amount: item.amount,
+                            reason: item.reason || '',
+                            status: doc.status
+                        });
+                    }
+                });
+            });
+            setEntries(Array.from(entriesMap.values()));
+            
         } catch (error) {
-            alert(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            toast.error(error.response?.data?.detail || 'เกิดข้อผิดพลาดในการบันทึก');
+        } finally {
+            setIsSaving(false);
         }
     };
 
-    const handleOpenModal = (doc = null) => {
-        setEditingDocument(doc);
-        setIsModalOpen(true);
-    };
+    // Filter guards for dropdown
+    const filteredGuards = useMemo(() => {
+        if (!searchTerm) return [];
+        const term = searchTerm.toLowerCase();
+        return guards.filter(g => 
+            g.guardId.toLowerCase().includes(term) ||
+            g.name.toLowerCase().includes(term) ||
+            g.firstName.toLowerCase().includes(term) ||
+            g.lastName.toLowerCase().includes(term)
+        ).slice(0, 8);
+    }, [guards, searchTerm]);
 
-    const handleOpenPreview = (doc) => {
-        setDocumentToPreview(doc);
-        setIsPreviewModalOpen(true);
-    };
-
+    // Get guard name
     const getGuardName = (guardId) => {
         const guard = guards.find(g => g.guardId === guardId);
-        return guard ? `${guard.name} (${guard.guardId})` : 'ไม่พบข้อมูล';
+        return guard ? guard.name : guardId;
     };
 
-    const getUserFullName = (username) => {
-        const foundUser = users.find(u => u.username === username);
-        return foundUser ? `${foundUser.firstName} ${foundUser.lastName}` : username;
-    };
+    // Calculate totals
+    const totalAmount = useMemo(() => {
+        return entries.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+    }, [entries]);
 
-    const statusStyles = {
-        Draft: 'bg-gray-100 text-gray-800',
-        Pending: 'bg-yellow-100 text-yellow-800',
-        Approved: 'bg-green-100 text-green-800',
-        Rejected: 'bg-red-100 text-red-800',
-    };
+    // Calculate monthly summary
+    const monthlySummary = useMemo(() => {
+        const year = currentMonth.getFullYear();
+        const month = currentMonth.getMonth();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+        
+        return {
+            guards: monthlyData.byGuard || [],
+            total: monthlyData.total || 0,
+            days
+        };
+    }, [monthlyData, currentMonth]);
 
-    const statusText = {
-        Draft: 'แบบร่าง',
-        Pending: 'รออนุมัติ',
-        Approved: 'อนุมัติแล้ว',
-        Rejected: 'ปฏิเสธ',
-    };
-
-    if (!user) return <div className="p-6 text-center text-red-500">ไม่พบข้อมูลผู้ใช้!</div>;
+    if (!user) {
+        return <div className="p-6 text-center text-red-500">กรุณาเข้าสู่ระบบ</div>;
+    }
 
     return (
-        <div>
-            <div className="flex justify-between items-center mb-4">
-                <h1 className="text-2xl font-bold text-gray-800">รายการเบิกจ่ายรายวัน</h1>
-                <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                        <label htmlFor="date-filter" className="text-sm font-medium">วันที่:</label>
-                        <input type="date" id="date-filter" value={currentDate} onChange={(e) => setCurrentDate(e.target.value)} className="px-3 py-1.5 border border-gray-300 rounded-lg" />
-                    </div>
-                    <button onClick={() => handleOpenModal(null)} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                        <PlusCircle className="w-5 h-5 mr-2" /> สร้างเอกสารเบิก
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-800">รายการเบิกจ่ายรายวัน</h1>
+                    <p className="text-gray-500 text-sm mt-1">บันทึกการเบิกเงินของพนักงาน รปภ.</p>
+                </div>
+                
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowMonthlySummary(false)}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                            !showMonthlySummary 
+                                ? 'bg-indigo-600 text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        📝 กรอกรายวัน
+                    </button>
+                    <button
+                        onClick={() => setShowMonthlySummary(true)}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                            showMonthlySummary 
+                                ? 'bg-indigo-600 text-white shadow-md' 
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        📊 สรุปเดือน
                     </button>
                 </div>
             </div>
 
-            <div className="flex border-b">
-                <TabButton label="เบิกรายวัน (หักเงินเดือน)" type="advance" isActive={activeTab === 'advance'} onClick={() => setActiveTab('advance')} />
-                <TabButton label="เงินควง (จ่ายเงินสด)" type="cash" isActive={activeTab === 'cash'} onClick={() => setActiveTab('cash')} />
+            {/* Type Selection */}
+            <div className="bg-white rounded-xl shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-3">
+                    <Wallet className="w-5 h-5 text-indigo-600" />
+                    <span className="font-medium text-gray-700">ประเภทการเบิก:</span>
+                </div>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setAdvanceType('advance')}
+                        className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                            advanceType === 'advance'
+                                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
+                                : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                    >
+                        <div className="font-semibold">💰 เบิกล่วงหน้า</div>
+                        <div className="text-sm text-gray-500">หักจากเงินเดือน</div>
+                    </button>
+                    <button
+                        onClick={() => setAdvanceType('cash')}
+                        className={`flex-1 py-3 px-4 rounded-lg border-2 transition-all ${
+                            advanceType === 'cash'
+                                ? 'border-green-500 bg-green-50 text-green-700'
+                                : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                    >
+                        <div className="font-semibold">💵 เงินควง</div>
+                        <div className="text-sm text-gray-500">จ่ายเงินสดทันที</div>
+                    </button>
+                </div>
             </div>
 
-            <div className="mt-6 space-y-4">
-                {isLoading ? (
-                    <FullPageLoading text="กำลังโหลดข้อมูลเบิกเงินรายวัน" />
-                ) : (
-                    documents.map(doc => (
-                        <div key={doc.id} className="bg-white p-4 rounded-lg shadow-md border flex justify-between items-center">
-                            <div className="flex items-center space-x-4">
-                                <FileText className="w-8 h-8 text-gray-400" />
-                                <div>
-                                    <p className="font-semibold text-gray-800">{doc.docNumber}</p>
-                                    <p className="text-sm text-gray-500">
-                                        <span className="mr-4"><User className="w-3 h-3 inline -mt-1 mr-1" />{getUserFullName(doc.createdBy)}</span>
-                                        <Clock className="w-3 h-3 inline -mt-1 mr-1" />{doc.items.length} รายการ
-                                    </p>
+            {!showMonthlySummary ? (
+                /* ===== DAILY INPUT VIEW ===== */
+                <>
+                    {/* Date Navigation */}
+                    <div className="bg-white rounded-xl shadow-sm p-4">
+                        <div className="flex items-center justify-between">
+                            <button
+                                onClick={goToPrevDay}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            
+                            <div className="text-center">
+                                <div className="text-xl font-bold text-gray-800">
+                                    {formatThaiDate(selectedDate)}
                                 </div>
+                                <button
+                                    onClick={goToToday}
+                                    className="text-sm text-indigo-600 hover:underline mt-1"
+                                >
+                                    กลับไปวันนี้
+                                </button>
                             </div>
-                            <div className="flex items-center space-x-4">
-                                <span className={`px-3 py-1 text-sm font-semibold rounded-full ${statusStyles[doc.status]}`}>
-                                    {statusText[doc.status]}
-                                </span>
-                                {doc.status === 'Draft' && doc.createdBy === user.username && (
-                                    <button onClick={() => handleOpenModal(doc)} className="text-blue-500 hover:text-blue-700" title="แก้ไข"><Edit className="w-5 h-5" /></button>
-                                )}
-                                {doc.status !== 'Draft' && (
-                                    <button onClick={() => handleOpenPreview(doc)} className="text-green-500 hover:text-green-700" title="ส่งออก"><Share2 className="w-5 h-5" /></button>
+                            
+                            <button
+                                onClick={goToNextDay}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Entry Form */}
+                    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                        {/* Search to Add */}
+                        <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-600">
+                            <div className="relative">
+                                <div className="flex items-center bg-white rounded-lg shadow-sm">
+                                    <Search className="w-5 h-5 text-gray-400 ml-3" />
+                                    <input
+                                        type="text"
+                                        placeholder="🔍 พิมพ์รหัสหรือชื่อพนักงานเพื่อเพิ่มรายการ..."
+                                        value={searchTerm}
+                                        onChange={(e) => {
+                                            setSearchTerm(e.target.value);
+                                            setShowGuardDropdown(true);
+                                        }}
+                                        onFocus={() => setShowGuardDropdown(true)}
+                                        className="flex-1 py-3 px-3 rounded-lg focus:outline-none"
+                                    />
+                                    {searchTerm && (
+                                        <button
+                                            onClick={() => {
+                                                setSearchTerm('');
+                                                setShowGuardDropdown(false);
+                                            }}
+                                            className="p-2 mr-1"
+                                        >
+                                            <X className="w-5 h-5 text-gray-400" />
+                                        </button>
+                                    )}
+                                </div>
+                                
+                                {/* Dropdown */}
+                                {showGuardDropdown && filteredGuards.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-xl border z-50 max-h-64 overflow-y-auto">
+                                        {filteredGuards.map(guard => (
+                                            <button
+                                                key={guard.id}
+                                                onClick={() => addEntry(guard)}
+                                                className="w-full px-4 py-3 text-left hover:bg-indigo-50 flex items-center gap-3 border-b last:border-b-0"
+                                            >
+                                                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                                                    <span className="text-indigo-600 font-bold text-sm">
+                                                        {guard.guardId.slice(-2)}
+                                                    </span>
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-gray-800">
+                                                        {guard.name}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        รหัส: {guard.guardId}
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
                         </div>
-                    ))
-                )}
-                {documents.length === 0 && !isLoading && (
-                    <div className="text-center py-12 text-gray-500 bg-white rounded-lg shadow-md">ไม่มีเอกสารในวันที่เลือก</div>
-                )}
-            </div>
 
-            <AdvanceBatchModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={handleSaveDocument} guards={guards} document={editingDocument} advanceType={activeTab} currentUser={user} getUserFullName={getUserFullName} />
-            <AdvanceDocumentPreviewModal isOpen={isPreviewModalOpen} onClose={() => setIsPreviewModalOpen(false)} document={documentToPreview} guards={guards} getGuardName={getGuardName} getUserFullName={getUserFullName} />
+                        {/* Entries List */}
+                        <div className="p-4">
+                            {isLoading ? (
+                                <div className="text-center py-8">
+                                    <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                                    <p className="text-gray-500">กำลังโหลด...</p>
+                                </div>
+                            ) : entries.length === 0 ? (
+                                <div className="text-center py-12 text-gray-400">
+                                    <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                                    <p className="text-lg">ยังไม่มีรายการเบิกในวันนี้</p>
+                                    <p className="text-sm">พิมพ์ค้นหาชื่อพนักงานด้านบนเพื่อเพิ่มรายการ</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {entries.map((entry, index) => (
+                                        <div
+                                            key={entry.id}
+                                            className={`p-4 rounded-xl border-2 transition-all ${
+                                                entry.isNew 
+                                                    ? 'border-indigo-300 bg-indigo-50' 
+                                                    : 'border-gray-100 bg-gray-50'
+                                            }`}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                {/* Number */}
+                                                <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                                                    {index + 1}
+                                                </div>
+                                                
+                                                {/* Guard Info */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-semibold text-gray-800">
+                                                        {getGuardName(entry.guardId)}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        รหัส: {entry.guardId}
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Amount */}
+                                                <div className="w-32">
+                                                    <input
+                                                        type="number"
+                                                        value={entry.amount || ''}
+                                                        onChange={(e) => updateEntry(entry.id, 'amount', e.target.value)}
+                                                        placeholder="0"
+                                                        className="w-full px-3 py-2 border rounded-lg text-right font-semibold text-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                        disabled={!entry.isNew && entry.status !== 'Draft'}
+                                                    />
+                                                    <div className="text-xs text-gray-400 text-right mt-1">บาท</div>
+                                                </div>
+                                                
+                                                {/* Remove */}
+                                                {(entry.isNew || entry.status === 'Draft') && (
+                                                    <button
+                                                        onClick={() => removeEntry(entry.id)}
+                                                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Reason */}
+                                            <div className="mt-3 ml-12">
+                                                <input
+                                                    type="text"
+                                                    value={entry.reason}
+                                                    onChange={(e) => updateEntry(entry.id, 'reason', e.target.value)}
+                                                    placeholder="หมายเหตุ (ไม่บังคับ) เช่น ค่าเดินทาง, เบิกล่วงหน้า..."
+                                                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    disabled={!entry.isNew && entry.status !== 'Draft'}
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer - Total & Save */}
+                        {entries.length > 0 && (
+                            <div className="p-4 bg-gray-50 border-t">
+                                <div className="flex items-center justify-between">
+                                    <div className="text-gray-600">
+                                        <span className="font-medium">{entries.length}</span> รายการ
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm text-gray-500">ยอดรวม</div>
+                                        <div className="text-2xl font-bold text-indigo-600">
+                                            {totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} บาท
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {entries.some(e => e.isNew) && (
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={isSaving}
+                                        className="w-full mt-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isSaving ? (
+                                            <>
+                                                <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                                                กำลังบันทึก...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save className="w-5 h-5" />
+                                                บันทึกรายการเบิกจ่าย
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </>
+            ) : (
+                /* ===== MONTHLY SUMMARY VIEW ===== */
+                <>
+                    {/* Month Navigation */}
+                    <div className="bg-white rounded-xl shadow-sm p-4">
+                        <div className="flex items-center justify-between">
+                            <button
+                                onClick={goToPrevMonth}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            
+                            <div className="text-center">
+                                <div className="text-xl font-bold text-gray-800">
+                                    📊 สรุปการเบิกจ่าย - {formatThaiMonth(currentMonth)}
+                                </div>
+                            </div>
+                            
+                            <button
+                                onClick={goToNextMonth}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-5 text-white">
+                            <div className="flex items-center gap-3 mb-2">
+                                <TrendingUp className="w-6 h-6" />
+                                <span className="font-medium">ยอดรวมทั้งเดือน</span>
+                            </div>
+                            <div className="text-3xl font-bold">
+                                {(monthlyData.total || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                            </div>
+                            <div className="text-indigo-100">บาท</div>
+                        </div>
+                        
+                        <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-5 text-white">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Users className="w-6 h-6" />
+                                <span className="font-medium">จำนวนพนักงานที่เบิก</span>
+                            </div>
+                            <div className="text-3xl font-bold">
+                                {(monthlyData.byGuard || []).length}
+                            </div>
+                            <div className="text-green-100">คน</div>
+                        </div>
+                        
+                        <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl p-5 text-white">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Calendar className="w-6 h-6" />
+                                <span className="font-medium">จำนวนรายการ</span>
+                            </div>
+                            <div className="text-3xl font-bold">
+                                {monthlyData.totalEntries || 0}
+                            </div>
+                            <div className="text-orange-100">รายการ</div>
+                        </div>
+                    </div>
+
+                    {/* Monthly Table */}
+                    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                        <div className="p-4 border-b flex justify-between items-center">
+                            <h3 className="font-semibold text-gray-800">รายละเอียดการเบิกรายคน</h3>
+                            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                                <Download className="w-4 h-4" />
+                                ส่งออก Excel
+                            </button>
+                        </div>
+                        
+                        {isLoading ? (
+                            <div className="text-center py-12">
+                                <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                                <p className="text-gray-500">กำลังโหลด...</p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 sticky left-0 bg-gray-50 z-10">
+                                                รหัส
+                                            </th>
+                                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 sticky left-16 bg-gray-50 z-10">
+                                                ชื่อ-นามสกุล
+                                            </th>
+                                            {monthlySummary.days.map(day => (
+                                                <th key={day} className="px-2 py-3 text-center text-sm font-semibold text-gray-600 min-w-[50px]">
+                                                    {day}
+                                                </th>
+                                            ))}
+                                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600 bg-indigo-50">
+                                                รวม
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {(monthlyData.byGuard || []).length === 0 ? (
+                                            <tr>
+                                                <td colSpan={monthlySummary.days.length + 3} className="px-4 py-12 text-center text-gray-400">
+                                                    ไม่มีข้อมูลการเบิกในเดือนนี้
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            (monthlyData.byGuard || []).map((guard, idx) => (
+                                                <tr key={guard.guardId} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                                    <td className="px-4 py-3 text-sm font-medium text-gray-800 sticky left-0 bg-inherit z-10">
+                                                        {guard.guardId}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-sm text-gray-600 sticky left-16 bg-inherit z-10 whitespace-nowrap">
+                                                        {getGuardName(guard.guardId)}
+                                                    </td>
+                                                    {monthlySummary.days.map(day => {
+                                                        const amount = guard.byDay?.[day] || 0;
+                                                        return (
+                                                            <td key={day} className={`px-2 py-3 text-center text-sm ${amount > 0 ? 'text-indigo-600 font-medium' : 'text-gray-300'}`}>
+                                                                {amount > 0 ? amount.toLocaleString() : '-'}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                    <td className="px-4 py-3 text-right text-sm font-bold text-indigo-600 bg-indigo-50">
+                                                        {(guard.total || 0).toLocaleString()}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                    {(monthlyData.byGuard || []).length > 0 && (
+                                        <tfoot className="bg-indigo-100">
+                                            <tr>
+                                                <td colSpan={2} className="px-4 py-3 text-sm font-bold text-gray-800 sticky left-0 bg-indigo-100 z-10">
+                                                    รวมทั้งหมด
+                                                </td>
+                                                {monthlySummary.days.map(day => {
+                                                    const dayTotal = (monthlyData.byDay || {})[day] || 0;
+                                                    return (
+                                                        <td key={day} className={`px-2 py-3 text-center text-sm font-medium ${dayTotal > 0 ? 'text-indigo-700' : 'text-gray-400'}`}>
+                                                            {dayTotal > 0 ? dayTotal.toLocaleString() : '-'}
+                                                        </td>
+                                                    );
+                                                })}
+                                                <td className="px-4 py-3 text-right text-lg font-bold text-indigo-700 bg-indigo-200">
+                                                    {(monthlyData.total || 0).toLocaleString()}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    )}
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </>
+            )}
         </div>
     );
 }
-
-const TabButton = ({ label, isActive, onClick }) => (
-    <button onClick={onClick} className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${isActive ? 'bg-white text-indigo-600 border-b-2 border-indigo-600' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
-        {label}
-    </button>
-);

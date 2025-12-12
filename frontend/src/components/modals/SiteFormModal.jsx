@@ -297,10 +297,13 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
 
     // Shift assignment functions
     const addShiftRow = () => {
+        const firstShift = shifts[0];
         const newShiftAssignment = {
-            shiftId: shifts[0]?.id || null,
-            shiftCode: shifts[0]?.shiftCode || '',
-            shiftName: shifts[0]?.name || '',
+            shiftId: firstShift?.id || null,
+            shiftCode: firstShift?.shiftCode || '',
+            shiftName: firstShift?.name || '',
+            startTime: firstShift?.startTime || '',
+            endTime: firstShift?.endTime || '',
             numberOfPeople: 1
         };
         setFormData(prev => ({
@@ -326,7 +329,9 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                     ...updatedShifts[index],
                     shiftId: selectedShift.id,
                     shiftCode: selectedShift.shiftCode,
-                    shiftName: selectedShift.name
+                    shiftName: selectedShift.name,
+                    startTime: selectedShift.startTime || '',
+                    endTime: selectedShift.endTime || ''
                 };
             }
         } else {
@@ -763,19 +768,14 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                     formData.shiftAssignments.map((shiftAssignment, index) => {
                                         const selectedShift = shifts.find(s => s.id === parseInt(shiftAssignment.shiftId));
                                         return (
-                                            <div key={index} className="bg-white rounded-lg shadow-sm border border-amber-200 p-3 hover:shadow-md transition-shadow">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex items-center gap-2 flex-1">
-                                                        <div className="flex items-center bg-amber-100 px-3 py-1.5 rounded-lg">
-                                                            <Clock className="w-4 h-4 text-amber-600 mr-1.5" />
-                                                            <span className="text-sm font-semibold text-amber-800">
-                                                                {selectedShift ? `${selectedShift.shiftCode} - ${selectedShift.name}` : 'เลือกกะ'}
-                                                            </span>
-                                                        </div>
+                                            <div key={index} className="bg-white rounded-lg shadow-sm border border-amber-200 p-4 hover:shadow-md transition-shadow">
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    {/* Shift Selection */}
+                                                    <div className="flex items-center gap-2">
                                                         <select
                                                             value={shiftAssignment.shiftId || ''}
                                                             onChange={(e) => handleShiftChange(index, 'shiftId', e.target.value)}
-                                                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-amber-500"
+                                                            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 font-medium min-w-[140px]"
                                                         >
                                                             {shifts.map(shift => (
                                                                 <option key={shift.id} value={shift.id}>
@@ -785,22 +785,44 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                                         </select>
                                                     </div>
                                                     
+                                                    {/* Editable Time Inputs */}
+                                                    <div className="flex items-center gap-2 bg-gradient-to-r from-blue-50 to-blue-100 px-3 py-1.5 rounded-lg border border-blue-200">
+                                                        <Clock className="w-4 h-4 text-blue-600" />
+                                                        <input
+                                                            type="time"
+                                                            value={shiftAssignment.startTime || selectedShift?.startTime || ''}
+                                                            onChange={(e) => handleShiftChange(index, 'startTime', e.target.value)}
+                                                            className="px-2 py-0.5 border border-blue-300 rounded text-sm focus:ring-1 focus:ring-blue-500 bg-white w-24"
+                                                            title="เวลาเข้า"
+                                                        />
+                                                        <span className="text-blue-600 font-bold">-</span>
+                                                        <input
+                                                            type="time"
+                                                            value={shiftAssignment.endTime || selectedShift?.endTime || ''}
+                                                            onChange={(e) => handleShiftChange(index, 'endTime', e.target.value)}
+                                                            className="px-2 py-0.5 border border-blue-300 rounded text-sm focus:ring-1 focus:ring-blue-500 bg-white w-24"
+                                                            title="เวลาออก"
+                                                        />
+                                                    </div>
+                                                    
+                                                    {/* Number of People */}
                                                     <div className="flex items-center gap-2">
-                                                        <label className="text-xs text-gray-600 whitespace-nowrap">จำนวนคน:</label>
+                                                        <label className="text-xs text-gray-600 whitespace-nowrap">จำนวน:</label>
                                                         <input
                                                             type="number"
                                                             value={shiftAssignment.numberOfPeople || 1}
                                                             onChange={(e) => handleShiftChange(index, 'numberOfPeople', parseInt(e.target.value) || 1)}
                                                             min="1"
-                                                            className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:ring-1 focus:ring-amber-500"
+                                                            className="w-14 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:ring-1 focus:ring-amber-500"
                                                         />
                                                         <span className="text-xs text-gray-500">คน</span>
                                                     </div>
                                                     
+                                                    {/* Delete Button */}
                                                     <button
                                                         type="button"
                                                         onClick={() => removeShiftRow(index)}
-                                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-auto"
                                                         title="ลบกะนี้"
                                                     >
                                                         <Trash2 className="w-4 h-4" />

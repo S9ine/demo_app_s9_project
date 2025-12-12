@@ -1,5 +1,6 @@
 import React from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './components/common/Toast';
 import LoginScreen from './pages/LoginScreen';
 import Sidebar from './components/core/Sidebar';
 import Header from './components/core/Header';
@@ -42,11 +43,13 @@ function AppContent() {
     );
 }
 
-// Wrap the app with AuthProvider
+// Wrap the app with AuthProvider and ToastProvider
 export default function App() {
     return (
         <AuthProvider>
-            <AppContent />
+            <ToastProvider>
+                <AppContent />
+            </ToastProvider>
         </AuthProvider>
     );
 }
