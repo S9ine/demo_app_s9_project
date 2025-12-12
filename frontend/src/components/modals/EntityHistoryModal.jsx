@@ -100,7 +100,9 @@ export default function EntityHistoryModal({ isOpen, onClose, entityType, entity
             'position': 'ตำแหน่ง',
             'department': 'แผนก',
             'salary': 'เงินเดือน',
-            'employmentDetails': 'ข้ออมูลการจ้าง'
+            'employmentDetails': 'ข้อมูลการจ้าง',
+            'workingDays': 'วันทำงานต่อเดือน',
+            'shiftAssignments': 'ข้อมูลกะงาน'
         };
         return fieldMap[field] || field;
     };
@@ -119,8 +121,9 @@ export default function EntityHistoryModal({ isOpen, onClose, entityType, entity
                                 {idx + 1}. {emp.position || '-'}
                             </div>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                <div><span className="text-gray-600">จำนวน:</span> {emp.quantity || 0} คน</div>
-                                <div><span className="text-gray-600">อัตรา:</span> {emp.rate || 0} บาท</div>
+                                <div><span className="text-gray-600">จำนวน:</span> <span className="font-semibold">{emp.quantity || 0}</span> คน</div>
+                                <div><span className="text-gray-600">วันทำงาน:</span> <span className="font-semibold">{emp.workingDays || 30}</span> วัน/เดือน</div>
+                                <div><span className="text-gray-600">อัตรา:</span> {emp.hiringRate || 0} บาท</div>
                                 <div><span className="text-gray-600">เบี้ยตำแหน่ง:</span> {emp.positionAllowance || 0} บาท</div>
                                 <div><span className="text-gray-600">เบี้ยอื่นๆ:</span> {emp.otherAllowance || 0} บาท</div>
                                 <div className="col-span-2"><span className="text-gray-600">รายได้ต่อวัน:</span> <span className="font-semibold text-green-600">{emp.dailyIncome || 0}</span> บาท</div>
@@ -129,6 +132,30 @@ export default function EntityHistoryModal({ isOpen, onClose, entityType, entity
                     ))}
                     <div className="text-sm font-semibold text-gray-700 mt-2">
                         รวม {value.length} ตำแหน่ง
+                    </div>
+                </div>
+            );
+        }
+        
+        // ถ้าเป็น shiftAssignments (ข้อมูลกะงาน)
+        if (key === 'shiftAssignments' && Array.isArray(value)) {
+            if (value.length === 0) return 'ไม่มีข้อมูล';
+            return (
+                <div className="space-y-2 mt-2">
+                    {value.map((shift, idx) => (
+                        <div key={idx} className="bg-white p-2.5 rounded-lg border border-amber-200 shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div className="font-semibold text-amber-700">
+                                    {shift.shiftCode} - {shift.shiftName}
+                                </div>
+                                <div className="text-sm">
+                                    <span className="text-gray-600">จำนวน:</span> <span className="font-bold text-amber-600">{shift.numberOfPeople}</span> คน
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    <div className="text-sm font-semibold text-gray-700 mt-2">
+                        รวม {value.length} กะ, {value.reduce((sum, s) => sum + (s.numberOfPeople || 0), 0)} คน
                     </div>
                 </div>
             );

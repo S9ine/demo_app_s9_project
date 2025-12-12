@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 import apiClient from '../../config/api';
 import ShiftFormModal from '../modals/ShiftFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
+import { FullPageLoading } from '../common/LoadingSpinner';
 
 const ShiftList = () => {
   const [shifts, setShifts] = useState([]);
@@ -85,9 +86,7 @@ const ShiftList = () => {
         </div>
 
         {loading ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
+          <FullPageLoading text="กำลังโหลดข้อมูลกะงาน" />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">

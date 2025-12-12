@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api'; // เรียกใช้ API Config
 import { Search, X, GripVertical, Trash2 } from 'lucide-react';
+import { FullPageLoading } from '../common/LoadingSpinner';
 
 export default function Scheduler() {
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -430,7 +431,7 @@ export default function Scheduler() {
                         </div>
 
                         {isLoading ? (
-                            <div className="text-center py-8 text-gray-600 text-lg">กำลังโหลดข้อมูล...</div>
+                            <FullPageLoading text="กำลังโหลดตารางการจัดตาราง" />
                         ) : (
                             <div className="flex-1 grid grid-cols-2 gap-6 overflow-y-auto">
                                 {/* Unscheduled Sites */}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import ServiceFormModal from '../modals/ServiceFormModal';
+import { FullPageLoading } from '../common/LoadingSpinner';
 import { PlusCircle, Edit, Trash2 } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 
@@ -116,7 +117,7 @@ export default function ServiceList() {
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
                 {isLoading ? (
-                    <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
+                    <FullPageLoading text="กำลังโหลดข้อมูลบริการ" />
                 ) : (
                     <table className="w-full text-sm">
                         <thead>

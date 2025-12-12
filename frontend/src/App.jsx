@@ -32,7 +32,7 @@ function AppContent() {
     }
 
     return (
-        <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+        <div className="flex h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 font-sans overflow-hidden">
             <Sidebar setActivePage={setActivePage} activePage={activePage} userPermissions={user.permissions} userRole={user.role} />
             <div className="flex-1 flex flex-col overflow-hidden">
                 <Header user={user} handleLogout={handleLogout} />

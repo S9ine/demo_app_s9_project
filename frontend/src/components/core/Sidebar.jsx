@@ -130,13 +130,14 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
 
     return (
         <>
-            {/* Google Apps Menu Button - ย้ายมาซ้าย */}
+            {/* Google Apps Menu Button - อยู่ตรงกลางแนวตั้งของ header */}
             <button
                 onClick={() => setIsOpen(true)}
-                className="fixed top-4 left-4 z-50 p-2.5 hover:bg-gray-100 rounded-full transition-all duration-200 group"
+                className="fixed top-1/2 -translate-y-1/2 left-4 z-50 p-3 bg-gradient-to-br from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-xl transition-all duration-300 group shadow-lg hover:shadow-2xl hover:scale-105"
+                style={{ top: '32px' }}
                 title="แอปของระบบ"
             >
-                <svg className="w-6 h-6 text-gray-600" viewBox="0 0 24 24" fill="currentColor">
+                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6-8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6-8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
                 </svg>
             </button>
@@ -144,52 +145,56 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
             {/* Backdrop with Blur */}
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/40 backdrop-blur-md z-[100] transition-all duration-300"
+                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] transition-all duration-300"
                     onClick={() => setIsOpen(false)}
                 ></div>
             )}
 
             {/* Menu Modal Card - Centered Large Style */}
             <div
-                className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[700px] bg-white rounded-3xl shadow-2xl z-[101] transition-all duration-300 transform ${
+                className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[700px] bg-white rounded-3xl shadow-2xl z-[101] transition-all duration-300 transform overflow-hidden ${
                     isOpen ? 'scale-100 opacity-100' : 'scale-90 opacity-0 pointer-events-none'
                 }`}
             >
-                {/* Header */}
-                <div className="p-8 pb-6 border-b border-gray-100">
-                    <div className="flex items-center justify-between">
+                {/* Header with Gradient */}
+                <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 pb-6 text-white">
+                    <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20"></div>
+                    <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
+                    
+                    <div className="relative flex items-center justify-between">
                         <div>
-                            <h2 className="text-3xl font-bold text-gray-800">เลือกเมนู</h2>
-                            <p className="text-sm text-gray-500 mt-1">เลือกฟังก์ชันที่ต้องการใช้งาน</p>
+                            <h2 className="text-3xl font-bold drop-shadow-lg">เลือกเมนู</h2>
+                            <p className="text-sm text-blue-100 mt-1">เลือกฟังก์ชันที่ต้องการใช้งาน</p>
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            className="p-2 hover:bg-white/20 backdrop-blur-sm rounded-full transition-all duration-200"
                         >
-                            <X className="w-6 h-6 text-gray-500" />
+                            <X className="w-6 h-6 text-white" />
                         </button>
                     </div>
                 </div>
 
                 {/* Search Box */}
-                <div className="px-8 pt-6">
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <div className="px-8 pt-6 pb-2">
+                    <div className="relative group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-400" />
                         <input
                             type="text"
-                            placeholder="ค้นหาแอป"
+                            placeholder="ค้นหาแอป..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-12 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="w-full pl-12 pr-12 py-4 bg-gradient-to-r from-gray-50 to-blue-50 border-2 border-gray-200 rounded-xl text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 focus:bg-white transition-all shadow-sm"
                         />
                         {searchTerm && (
                             <button
                                 onClick={clearSearch}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-200 rounded-full transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-indigo-100 rounded-full transition-all duration-200"
                             >
-                                <X className="w-4 h-4 text-gray-500" />
+                                <X className="w-4 h-4 text-indigo-600" />
                             </button>
                         )}
+                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-focus-within:opacity-5 transition-opacity duration-300 pointer-events-none"></div>
                     </div>
                 </div>
 
@@ -262,34 +267,33 @@ export default function Sidebar({ setActivePage, activePage, userPermissions, us
                                         key={item.id}
                                         onClick={() => handleMenuClick(item)}
                                         className={`
-                                            group p-4 rounded-2xl transition-all
+                                            group p-4 rounded-2xl transition-all duration-300 relative overflow-hidden
                                             ${isActive 
-                                                ? 'bg-blue-50 ring-2 ring-blue-400 shadow-lg' 
-                                                : 'hover:bg-gray-50'
+                                                ? 'bg-gradient-to-br from-blue-50 to-indigo-50 ring-2 ring-indigo-400 shadow-xl scale-105' 
+                                                : 'hover:bg-gradient-to-br hover:from-gray-50 hover:to-blue-50 hover:shadow-lg hover:scale-102'
                                             }
                                         `}
                                     >
-                                        <div className="flex flex-col items-center space-y-2">
+                                        <div className="flex flex-col items-center space-y-2 relative z-10">
                                             <div className={`
-                                                w-16 h-16 rounded-2xl flex items-center justify-center transition-all
+                                                w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-md
                                                 ${isActive 
-                                                    ? 'bg-blue-500 shadow-xl scale-110' 
-                                                    : `bg-gradient-to-br ${gradient} group-hover:shadow-lg group-hover:scale-105`
+                                                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-2xl scale-110 animate-pulse' 
+                                                    : `bg-gradient-to-br ${gradient} group-hover:shadow-xl group-hover:scale-110`
                                                 }
                                             `}>
-                                                {isActive ? (
-                                                    <item.icon className="w-8 h-8 text-white" />
-                                                ) : (
-                                                    <item.icon className="w-8 h-8 text-white" />
-                                                )}
+                                                <item.icon className="w-8 h-8 text-white drop-shadow-lg" />
                                             </div>
                                             <span className={`
                                                 text-sm font-semibold text-center leading-tight line-clamp-2
-                                                ${isActive ? 'text-blue-600 font-bold' : 'text-gray-700'}
+                                                ${isActive ? 'text-indigo-700 font-bold' : 'text-gray-700 group-hover:text-indigo-600'}
                                             `}>
                                                 {highlightText(item.label)}
                                             </span>
                                         </div>
+                                        {isActive && (
+                                            <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-indigo-400/10 animate-pulse"></div>
+                                        )}
                                     </button>
                                 );
                             })}

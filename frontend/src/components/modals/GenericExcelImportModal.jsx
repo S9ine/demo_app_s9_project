@@ -110,130 +110,123 @@ export default function GenericExcelImportModal({ isOpen, onClose, onSuccess, en
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="relative bg-gradient-to-r from-green-600 to-emerald-700 p-8 text-white">
-                    <button onClick={handleClose} className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors">
-                        <X className="w-6 h-6" />
-                    </button>
-                    <div className="flex items-center space-x-3">
-                        <Upload className="w-8 h-8" />
-                        <div>
-                            <h2 className="text-2xl font-bold">{title || `Import ข้อมูล${config.entityName}`}</h2>
-                            <p className="text-green-100 text-sm mt-1">นำเข้าข้อมูลจากไฟล์ Excel อย่างรวดเร็ว</p>
-                        </div>
+                <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center">
+                        <Upload className="w-6 h-6 mr-2" />
+                        <h2 className="text-2xl font-bold">{title || `Import ข้อมูล${config.entityName}`}</h2>
                     </div>
+                    <button 
+                        onClick={handleClose} 
+                        className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
 
-                <div className="p-8 space-y-6">
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
                     {/* Step 1: Download Template */}
-                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-6 rounded-xl border border-blue-200">
-                        <div className="flex items-start space-x-4">
-                            <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                                    1
-                                </div>
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">ดาวน์โหลด Template</h3>
-                                <p className="text-gray-600 text-sm mb-4">ดาวน์โหลดไฟล์ Excel ต้นแบบ เพื่อกรอกข้อมูล{config.entityName}ของคุณ</p>
-                                <button
-                                    onClick={handleDownloadTemplate}
-                                    className="inline-flex items-center px-4 py-2 bg-white border-2 border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
-                                >
-                                    <Download className="w-5 h-5 mr-2 animate-bounce" />
-                                    ดาวน์โหลด Template
-                                </button>
-                            </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center mb-2">
+                            <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-xs mr-2">1</div>
+                            <h3 className="font-bold text-blue-900 text-sm">ดาวน์โหลด Template</h3>
                         </div>
+                        <p className="text-xs text-blue-700 mb-3 leading-relaxed">
+                            ดาวน์โหลดไฟล์ Excel ต้นแบบเพื่อกรอกข้อมูล{config.entityName}ตามรูปแบบที่กำหนด
+                        </p>
+                        <button
+                            onClick={handleDownloadTemplate}
+                            className="flex items-center px-4 py-2 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                        >
+                            <Download className="w-4 h-4 mr-2" />
+                            ดาวน์โหลด Template
+                        </button>
                     </div>
 
                     {/* Step 2: Upload File */}
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-6 rounded-xl border border-purple-200">
-                        <div className="flex items-start space-x-4">
-                            <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
-                                    2
+                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                        <div className="flex items-center mb-2">
+                            <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-xs mr-2">2</div>
+                            <h3 className="font-bold text-purple-900 text-sm">อัปโหลดไฟล์</h3>
+                        </div>
+                        <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center bg-white hover:border-purple-400 hover:bg-purple-50/30 transition-all cursor-pointer">
+                            <input
+                                type="file"
+                                id="file-upload"
+                                className="hidden"
+                                accept=".xlsx, .xls"
+                                onChange={handleFileChange}
+                                disabled={uploading}
+                            />
+                            <label
+                                htmlFor="file-upload"
+                                className="cursor-pointer flex flex-col items-center"
+                            >
+                                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-2">
+                                    <Upload className="w-6 h-6 text-purple-600" />
                                 </div>
-                            </div>
-                            <div className="flex-1">
-                                <h3 className="text-lg font-semibold text-gray-800 mb-2">อัปโหลดไฟล์</h3>
-                                <p className="text-gray-600 text-sm mb-4">เลือกไฟล์ Excel ที่กรอกข้อมูลเรียบร้อยแล้ว</p>
-                                
-                                <div className="border-2 border-dashed border-purple-300 rounded-lg p-6 text-center bg-white/50 hover:bg-white/80 transition-all duration-200">
-                                    <input
-                                        type="file"
-                                        accept=".xlsx,.xls"
-                                        onChange={handleFileChange}
-                                        className="hidden"
-                                        id="file-upload"
-                                    />
-                                    <label htmlFor="file-upload" className="cursor-pointer">
-                                        <Upload className="w-12 h-12 mx-auto text-purple-400 mb-3" />
-                                        <p className="text-gray-700 font-medium mb-1">คลิกเพื่อเลือกไฟล์</p>
-                                        <p className="text-gray-500 text-sm">รองรับไฟล์ .xlsx, .xls</p>
-                                    </label>
-                                    {file && (
-                                        <div className="mt-4 p-3 bg-purple-100 rounded-lg">
-                                            <p className="text-purple-800 font-medium text-sm">📄 {file.name}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                <span className="text-gray-800 font-medium text-sm mb-1">
+                                    {file ? file.name : 'คลิกเพื่อเลือกไฟล์ Excel'}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                    รองรับไฟล์ .xlsx, .xls
+                                </span>
+                            </label>
                         </div>
                     </div>
 
                     {/* Error Message */}
                     {error && (
-                        <div className="bg-gradient-to-r from-red-50 to-pink-50 border-l-4 border-red-500 p-4 rounded-lg">
-                            <div className="flex items-center">
-                                <div className="flex-shrink-0">
-                                    <svg className="w-5 h-5 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                </div>
-                                <div className="ml-3">
-                                    <p className="text-sm text-red-800 font-medium">{error}</p>
+                        <div className="bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg">
+                            <div className="flex items-start">
+                                <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                                <div className="ml-2">
+                                    <h3 className="text-xs font-semibold text-red-800">เกิดข้อผิดพลาด</h3>
+                                    <p className="text-xs text-red-700 mt-0.5">{error}</p>
                                 </div>
                             </div>
                         </div>
                     )}
+                </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex justify-end space-x-3 pt-4 border-t">
-                        <button
-                            onClick={handleClose}
-                            className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                            disabled={uploading}
-                        >
-                            ยกเลิก
-                        </button>
-                        <button
-                            onClick={handleUpload}
-                            disabled={!file || uploading}
-                            className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center ${
-                                !file || uploading
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg hover:shadow-xl'
-                            }`}
-                        >
-                            {uploading ? (
-                                <>
-                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    กำลังประมวลผล...
-                                </>
-                            ) : (
-                                <>
-                                    <Upload className="w-5 h-5 mr-2" />
-                                    อัปโหลดและ Import
-                                </>
-                            )}
-                        </button>
-                    </div>
+                {/* Footer */}
+                <div className="border-t bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                    <button
+                        onClick={handleClose}
+                        className="px-5 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium text-sm transition-colors"
+                        disabled={uploading}
+                    >
+                        ยกเลิก
+                    </button>
+                    <button
+                        onClick={handleUpload}
+                        disabled={!file || uploading}
+                        className={`px-5 py-2 rounded-lg text-white font-medium text-sm flex items-center transition-colors shadow-md hover:shadow-lg ${
+                            !file || uploading
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                        }`}
+                    >
+                        {uploading ? (
+                            <>
+                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                กำลังประมวลผล...
+                            </>
+                        ) : (
+                            <>
+                                <Upload className="w-4 h-4 mr-2" />
+                                เริ่ม Import
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
         </div>

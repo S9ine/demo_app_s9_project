@@ -5,6 +5,7 @@ import SiteFormModal from '../modals/SiteFormModal';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import GenericExcelImportModal from '../modals/GenericExcelImportModal';
 import EntityHistoryModal from '../modals/EntityHistoryModal';
+import { FullPageLoading } from '../common/LoadingSpinner';
 import { PlusCircle, Edit, Trash2, Download, Search, X, Upload, History } from 'lucide-react';
 import PaginationControls from '../common/PaginationControls';
 import * as XLSX from 'xlsx';
@@ -82,9 +83,12 @@ export default function SiteList() {
                 contactPerson: siteData.contactPerson || "",
                 phone: siteData.phone || "",
                 employmentDetails: siteData.employmentDetails || [],
+                shiftAssignments: siteData.shiftAssignments || [],
                 contractedServices: [],  // เก็บไว้ backward compatible
                 isActive: siteData.isActive !== undefined ? siteData.isActive : true
             };
+            
+            console.log('🚀 Sending to backend:', payload);
 
             if (siteData.id) {
                 await api.put(`/sites/${siteData.id}`, payload);
@@ -237,24 +241,36 @@ export default function SiteList() {
                 </div>
                 
                 {/* Action Buttons */}
-                <div className="flex space-x-2">
-                    <button
-                        onClick={() => setIsExportConfirmOpen(true)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg flex items-center"
-                        title={selectedIds.length > 0 ? `Export ${selectedIds.length} รายการที่เลือก` : 'Export ทั้งหมด'}
+                <div className="flex items-center gap-3">
+                    {/* Excel Group */}
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border-2 border-gray-200 shadow-sm">
+                        <button
+                            onClick={() => setIsExportConfirmOpen(true)}
+                            className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+                            title={selectedIds.length > 0 ? `Export ${selectedIds.length} รายการที่เลือก` : 'Export ทั้งหมด'}
+                        >
+                            <Download className="w-5 h-5" />
+                            <span>Export Excel</span>
+                            {selectedIds.length > 0 && (
+                                <span className="ml-1 bg-white/20 px-2 py-0.5 rounded-full text-xs">{selectedIds.length}</span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setIsImportModalOpen(true)}
+                            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-md hover:shadow-lg transition-all duration-300"
+                        >
+                            <Upload className="w-5 h-5" />
+                            <span>Import Excel</span>
+                        </button>
+                    </div>
+                    
+                    {/* Add Button */}
+                    <button 
+                        onClick={() => handleOpenModal()} 
+                        className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
                     >
-                        <Download className="w-5 h-5 mr-2" />
-                        Export Excel {selectedIds.length > 0 && `(${selectedIds.length})`}
-                    </button>
-                    <button
-                        onClick={() => setIsImportModalOpen(true)}
-                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center"
-                    >
-                        <Upload className="w-5 h-5 mr-2" />
-                        Import Excel
-                    </button>
-                    <button onClick={() => handleOpenModal()} className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
-                        <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มหน่วยงาน
+                        <PlusCircle className="w-5 h-5" />
+                        <span>เพิ่มหน่วยงาน</span>
                     </button>
                 </div>
             </div>
@@ -285,7 +301,7 @@ export default function SiteList() {
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
                 <div className="overflow-y-scroll" style={{maxHeight: 'calc(100vh - 280px)'}}>
                 {isLoading ? (
-                    <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
+                    <FullPageLoading text="กำลังโหลดข้อมูลหน่วยงาน" />
                 ) : (
                     <table className="w-full text-sm table-fixed">
                         <thead className="sticky top-0 z-10 bg-gray-100 border-b-2 border-gray-300">

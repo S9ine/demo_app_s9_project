@@ -4,6 +4,7 @@ import {
     DollarSign, Package, AlertCircle, CheckCircle, Clock, ArrowUpRight
 } from 'lucide-react';
 import axios from 'axios';
+import { FullPageLoading } from '../common/LoadingSpinner';
 
 export default function Dashboard({ setActivePage }) {
     const [stats, setStats] = useState({
@@ -124,11 +125,7 @@ export default function Dashboard({ setActivePage }) {
     );
 
     if (loading) {
-        return (
-            <div className="flex items-center justify-center h-96">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-        );
+        return <FullPageLoading text="กำลังโหลดข้อมูลภาพรวม" />;
     }
 
     return (

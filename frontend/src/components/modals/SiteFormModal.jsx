@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, Clock } from 'lucide-react';
 
 
 export default function SiteFormModal({ isOpen, onClose, site, onSave, customers }) {
-    const [formData, setFormData] = useState({ employmentDetails: [] });
+    const [formData, setFormData] = useState({ employmentDetails: [], shiftAssignments: [] });
     const [customerSearch, setCustomerSearch] = useState('');
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [services, setServices] = useState([]);
+    const [shifts, setShifts] = useState([]);
     const [positionSearches, setPositionSearches] = useState({});
     const [showPositionDropdowns, setShowPositionDropdowns] = useState({});
 
@@ -63,6 +64,9 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                             otherAllowance: detail.otherAllowance || 0,
                             dailyIncome: detail.dailyIncome || 0
                         }))
+                        : [],
+                    shiftAssignments: site?.shiftAssignments && Array.isArray(site.shiftAssignments)
+                        ? site.shiftAssignments
                         : []
                 };
                 setFormData(initialData);
@@ -83,27 +87,36 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
         initializeForm();
     }, [site, isOpen, customers]);
 
-    // Fetch services on mount
+    // Fetch services and shifts on mount
     useEffect(() => {
-        const fetchServices = async () => {
+        const fetchData = async () => {
             try {
                 const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:8000/api/services', {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                
+                // Fetch services
+                const servicesResponse = await fetch('http://localhost:8000/api/services', {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (response.ok) {
-                    const data = await response.json();
-                    setServices(data);
+                if (servicesResponse.ok) {
+                    const servicesData = await servicesResponse.json();
+                    setServices(servicesData);
+                }
+                
+                // Fetch shifts
+                const shiftsResponse = await fetch('http://localhost:8000/api/shifts', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (shiftsResponse.ok) {
+                    const shiftsData = await shiftsResponse.json();
+                    setShifts(shiftsData.filter(s => s.isActive));
                 }
             } catch (error) {
-                console.error('Error fetching services:', error);
+                console.error('Error fetching data:', error);
             }
         };
         
         if (isOpen) {
-            fetchServices();
+            fetchData();
         }
     }, [isOpen]);
 
@@ -227,6 +240,7 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
         const newDetail = {
             position: '',
             quantity: 1,
+            workingDays: 30,
             hiringRate: 0,
             positionAllowance: 0,
             diligenceBonus: 0,
@@ -281,6 +295,50 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
         });
     };
 
+    // Shift assignment functions
+    const addShiftRow = () => {
+        const newShiftAssignment = {
+            shiftId: shifts[0]?.id || null,
+            shiftCode: shifts[0]?.shiftCode || '',
+            shiftName: shifts[0]?.name || '',
+            numberOfPeople: 1
+        };
+        setFormData(prev => ({
+            ...prev,
+            shiftAssignments: [...(prev.shiftAssignments || []), newShiftAssignment]
+        }));
+    };
+
+    const removeShiftRow = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            shiftAssignments: prev.shiftAssignments.filter((_, i) => i !== index)
+        }));
+    };
+
+    const handleShiftChange = (index, field, value) => {
+        const updatedShifts = [...formData.shiftAssignments];
+        
+        if (field === 'shiftId') {
+            const selectedShift = shifts.find(s => s.id === parseInt(value));
+            if (selectedShift) {
+                updatedShifts[index] = {
+                    ...updatedShifts[index],
+                    shiftId: selectedShift.id,
+                    shiftCode: selectedShift.shiftCode,
+                    shiftName: selectedShift.name
+                };
+            }
+        } else {
+            updatedShifts[index] = {
+                ...updatedShifts[index],
+                [field]: value
+            };
+        }
+        
+        setFormData(prev => ({ ...prev, shiftAssignments: updatedShifts }));
+    };
+
     const handleSubmit = (e) => {
         if (e) e.preventDefault();
         
@@ -289,6 +347,10 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
             alert('กรุณากรอกรหัสหน่วยงานและชื่อหน่วยงาน');
             return;
         }
+        
+        // Debug: แสดงข้อมูลที่จะส่ง
+        console.log('📤 Sending site data:', formData);
+        console.log('📋 shiftAssignments detail:', JSON.stringify(formData.shiftAssignments, null, 2));
         
         onSave(formData);
         onClose();
@@ -476,9 +538,10 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                             {formData.employmentDetails && formData.employmentDetails.length > 0 ? (
                                 formData.employmentDetails.map((detail, index) => (
                                     <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
-                                        <div className="flex justify-between items-start mb-3">
+                                        {/* Header: ตำแหน่งงาน + ปุ่มลบ */}
+                                        <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200">
                                             <div className="flex-1">
-                                                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                                                <label className="block text-xs font-semibold text-indigo-700 mb-1.5">
                                                     ชื่อ/ตำแหน่งงาน <span className="text-red-500">*</span>
                                                 </label>
                                                 <div className={`relative position-search-${index}`}>
@@ -488,23 +551,20 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                                         onChange={(e) => handlePositionSearch(index, e.target.value)}
                                                         onFocus={() => setShowPositionDropdowns(prev => ({ ...prev, [index]: true }))}
                                                         placeholder="🔍 ค้นหาหรือพิมพ์ชื่อบริการ..."
-                                                        className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-medium"
                                                     />
                                                     {showPositionDropdowns[index] && getFilteredServices(index).length > 0 && (
-                                                        <div className="absolute z-50 w-full mt-2 bg-white border-2 border-indigo-200 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                                                        <div className="absolute z-50 w-full mt-1 bg-white border border-indigo-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                                                             {getFilteredServices(index).map(service => (
                                                                 <div
                                                                     key={service.id}
                                                                     onClick={() => handlePositionSelect(index, service)}
-                                                                    className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b last:border-b-0 transition-colors"
+                                                                    className="px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b last:border-b-0"
                                                                 >
-                                                                    <div className="font-semibold text-gray-900">{service.serviceName}</div>
-                                                                    <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
-                                                                        <span className="bg-gray-100 px-2 py-0.5 rounded">รหัส: {service.serviceCode}</span>
-                                                                        <span className="text-green-600 font-medium">฿{service.hiringRate?.toLocaleString() || '0'}</span>
-                                                                        {service.diligenceBonus > 0 && (
-                                                                            <span className="text-blue-600">+เบี้ยขยัน ฿{service.diligenceBonus?.toLocaleString()}</span>
-                                                                        )}
+                                                                    <div className="font-medium text-sm text-gray-900">{service.serviceName}</div>
+                                                                    <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-600">
+                                                                        <span className="bg-gray-100 px-1.5 py-0.5 rounded">{service.serviceCode}</span>
+                                                                        <span className="text-green-600 font-medium">฿{service.hiringRate?.toLocaleString()}</span>
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -515,146 +575,153 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                             <button
                                                 type="button"
                                                 onClick={() => removeEmploymentRow(index)}
-                                                className="ml-3 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="ml-2 p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                                 title="ลบรายการ"
                                             >
-                                                <Trash2 className="w-5 h-5" />
+                                                <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
                                         
-                                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-10 gap-3">
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">จำนวน</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.quantity || 0}
-                                                    onChange={(e) => handleEmploymentChange(index, 'quantity', parseInt(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    min="0"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">วันทำงาน</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.workingDays || 30}
-                                                    onChange={(e) => handleEmploymentChange(index, 'workingDays', parseInt(e.target.value) || 30)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    min="1"
-                                                    max="31"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">รายได้/วัน (฿)</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.dailyIncome || 0}
-                                                    onChange={(e) => handleEmploymentChange(index, 'dailyIncome', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border border-blue-300 bg-blue-50 rounded-lg text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold text-blue-700"
-                                                    min="0"
-                                                    step="0.01"
-                                                    placeholder="รายได้"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">ราคาจ้าง (฿)</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.hiringRate || 0}
-                                                    onChange={(e) => handleEmploymentChange(index, 'hiringRate', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    min="0"
-                                                    step="0.01"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">ค่าตำแหน่ง (฿)</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.positionAllowance || 0}
-                                                    onChange={(e) => handleEmploymentChange(index, 'positionAllowance', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    min="0"
-                                                    step="0.01"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">เบี้ยขยัน (฿)</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.diligenceBonus || 0}
-                                                    onChange={(e) => handleEmploymentChange(index, 'diligenceBonus', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    min="0"
-                                                    step="0.01"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">7DAY (฿)</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.sevenDayBonus || 0}
-                                                    onChange={(e) => handleEmploymentChange(index, 'sevenDayBonus', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    min="0"
-                                                    step="0.01"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">ค่าจุด (฿)</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.pointBonus || 0}
-                                                    onChange={(e) => handleEmploymentChange(index, 'pointBonus', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    min="0"
-                                                    step="0.01"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">ค่าอื่นๆ (฿)</label>
-                                                <input
-                                                    type="number"
-                                                    value={detail.otherAllowance || 0}
-                                                    onChange={(e) => handleEmploymentChange(index, 'otherAllowance', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-right focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    min="0"
-                                                    step="0.01"
-                                                />
-                                            </div>
-                                        </div>
-                                        
-                                        {/* แสดงต้นทุนต่อตำแหน่งและรวม */}
-                                        {detail.dailyIncome > 0 && (
-                                            <div className="mt-2 space-y-2">
-                                                <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <span className="text-gray-600">ต้นทุน/ตำแหน่ง:</span>
-                                                        <span className="font-bold text-orange-600">
-                                                            ฿{(((detail.dailyIncome || 0) * (detail.workingDays || 30)) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0)).toLocaleString()}
-                                                        </span>
-                                                    </div>
+                                        {/* Body: แบ่งเป็น 3 กลุ่ม */}
+                                        <div className="space-y-3">
+                                            {/* กลุ่ม 1: ข้อมูลพื้นฐาน */}
+                                            <div className="grid grid-cols-4 gap-2">
+                                                <div>
+                                                    <label className="block text-xs text-gray-600 mb-1">จำนวน</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.quantity || 0}
+                                                        onChange={(e) => handleEmploymentChange(index, 'quantity', parseInt(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-center text-sm focus:ring-1 focus:ring-indigo-500"
+                                                        min="0"
+                                                    />
                                                 </div>
-                                                <div className="p-2 bg-green-50 border border-green-200 rounded-lg">
-                                                    <div className="flex justify-between items-center text-sm">
-                                                        <span className="text-gray-600">ต้นทุนรวม ({detail.quantity || 0} คน):</span>
-                                                        <span className="font-bold text-green-700">
-                                                            ฿{((((detail.dailyIncome || 0) * (detail.workingDays || 30)) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0)) * (detail.quantity || 0)).toLocaleString()}
-                                                        </span>
-                                                    </div>
+                                                <div>
+                                                    <label className="block text-xs text-gray-600 mb-1">วันทำงาน</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.workingDays || 30}
+                                                        onChange={(e) => handleEmploymentChange(index, 'workingDays', parseInt(e.target.value) || 30)}
+                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-center text-sm focus:ring-1 focus:ring-indigo-500"
+                                                        min="1"
+                                                        max="31"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-blue-700 font-semibold mb-1">รายได้/วัน (฿)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.dailyIncome || 0}
+                                                        onChange={(e) => handleEmploymentChange(index, 'dailyIncome', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 border border-blue-300 bg-blue-50 rounded text-right text-sm font-semibold text-blue-700 focus:ring-1 focus:ring-blue-500"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-gray-600 mb-1">ราคาจ้าง (฿)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.hiringRate || 0}
+                                                        onChange={(e) => handleEmploymentChange(index, 'hiringRate', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-right text-sm focus:ring-1 focus:ring-indigo-500"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
                                                 </div>
                                             </div>
-                                        )}
-                                        
-                                        <div className="mt-3">
-                                            <label className="block text-xs font-medium text-gray-600 mb-1">หมายเหตุ</label>
-                                            <textarea
-                                                value={detail.remarks || ''}
-                                                onChange={(e) => handleEmploymentChange(index, 'remarks', e.target.value)}
-                                                placeholder="เพิ่มหมายเหตุ (ถ้ามี)..."
-                                                rows="2"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                                            />
+
+                                            {/* กลุ่ม 2: ค่าใช้จ่ายเพิ่มเติม */}
+                                            <div className="grid grid-cols-5 gap-2">
+                                                <div>
+                                                    <label className="block text-xs text-gray-600 mb-1">ค่าตำแหน่ง (฿)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.positionAllowance || 0}
+                                                        onChange={(e) => handleEmploymentChange(index, 'positionAllowance', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-right text-sm focus:ring-1 focus:ring-indigo-500"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-gray-600 mb-1">เบี้ยขยัน (฿)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.diligenceBonus || 0}
+                                                        onChange={(e) => handleEmploymentChange(index, 'diligenceBonus', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-right text-sm focus:ring-1 focus:ring-indigo-500"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-gray-600 mb-1">7DAY (฿)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.sevenDayBonus || 0}
+                                                        onChange={(e) => handleEmploymentChange(index, 'sevenDayBonus', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-right text-sm focus:ring-1 focus:ring-indigo-500"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-gray-600 mb-1">ค่าจุด (฿)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.pointBonus || 0}
+                                                        onChange={(e) => handleEmploymentChange(index, 'pointBonus', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-right text-sm focus:ring-1 focus:ring-indigo-500"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs text-gray-600 mb-1">ค่าอื่นๆ (฿)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={detail.otherAllowance || 0}
+                                                        onChange={(e) => handleEmploymentChange(index, 'otherAllowance', parseFloat(e.target.value) || 0)}
+                                                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-right text-sm focus:ring-1 focus:ring-indigo-500"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* กลุ่ม 3: สรุปต้นทุน + หมายเหตุ */}
+                                            {detail.dailyIncome > 0 && (
+                                                <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                                                    <div className="px-3 py-1.5 bg-orange-50 border border-orange-200 rounded-lg">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-xs text-gray-600">ต้นทุน/คน:</span>
+                                                            <span className="text-sm font-bold text-orange-600">
+                                                                ฿{(((detail.dailyIncome || 0) * (detail.workingDays || 30)) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0)).toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="text-xs text-gray-600">รวม ({detail.quantity || 0} คน):</span>
+                                                            <span className="text-sm font-bold text-green-700">
+                                                                ฿{((((detail.dailyIncome || 0) * (detail.workingDays || 30)) + (detail.positionAllowance || 0) + (detail.diligenceBonus || 0) + (detail.sevenDayBonus || 0) + (detail.pointBonus || 0) + (detail.otherAllowance || 0)) * (detail.quantity || 0)).toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            
+                                            <div>
+                                                <label className="block text-xs text-gray-600 mb-1">หมายเหตุ</label>
+                                                <textarea
+                                                    value={detail.remarks || ''}
+                                                    onChange={(e) => handleEmploymentChange(index, 'remarks', e.target.value)}
+                                                    placeholder="เพิ่มหมายเหตุ (ถ้ามี)..."
+                                                    rows="1"
+                                                    className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-indigo-500 text-sm resize-none"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 ))
@@ -666,6 +733,91 @@ export default function SiteFormModal({ isOpen, onClose, site, onSave, customers
                                 </div>
                             )}
                         </div>
+                    </div>
+
+                    {/* Section 3: ข้อมูลกะงาน */}
+                    <div className="p-4 border rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 mt-6">
+                        <div className="flex justify-between items-center pb-3 mb-4 border-b-2 border-amber-200">
+                            <div>
+                                <h3 className="font-semibold text-lg text-amber-700">3. ข้อมูลกะงาน</h3>
+                                <p className="text-xs text-gray-600 mt-1">กำหนดกะและจำนวนคนต่อกะ</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={addShiftRow}
+                                disabled={shifts.length === 0}
+                                className="flex items-center px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 shadow-md hover:shadow-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+                            >
+                                <PlusCircle className="w-5 h-5 mr-2" /> เพิ่มกะ
+                            </button>
+                        </div>
+                        
+                        {shifts.length === 0 ? (
+                            <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-amber-200">
+                                <p className="text-amber-600 font-medium">ไม่พบข้อมูลกะในระบบ</p>
+                                <p className="text-sm text-gray-500 mt-1">กรุณาเพิ่มข้อมูลกะในเมนู "กะงาน" ก่อน</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {formData.shiftAssignments && formData.shiftAssignments.length > 0 ? (
+                                    formData.shiftAssignments.map((shiftAssignment, index) => {
+                                        const selectedShift = shifts.find(s => s.id === parseInt(shiftAssignment.shiftId));
+                                        return (
+                                            <div key={index} className="bg-white rounded-lg shadow-sm border border-amber-200 p-3 hover:shadow-md transition-shadow">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-2 flex-1">
+                                                        <div className="flex items-center bg-amber-100 px-3 py-1.5 rounded-lg">
+                                                            <Clock className="w-4 h-4 text-amber-600 mr-1.5" />
+                                                            <span className="text-sm font-semibold text-amber-800">
+                                                                {selectedShift ? `${selectedShift.shiftCode} - ${selectedShift.name}` : 'เลือกกะ'}
+                                                            </span>
+                                                        </div>
+                                                        <select
+                                                            value={shiftAssignment.shiftId || ''}
+                                                            onChange={(e) => handleShiftChange(index, 'shiftId', e.target.value)}
+                                                            className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-amber-500"
+                                                        >
+                                                            {shifts.map(shift => (
+                                                                <option key={shift.id} value={shift.id}>
+                                                                    {shift.shiftCode} - {shift.name}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-2">
+                                                        <label className="text-xs text-gray-600 whitespace-nowrap">จำนวนคน:</label>
+                                                        <input
+                                                            type="number"
+                                                            value={shiftAssignment.numberOfPeople || 1}
+                                                            onChange={(e) => handleShiftChange(index, 'numberOfPeople', parseInt(e.target.value) || 1)}
+                                                            min="1"
+                                                            className="w-16 px-2 py-1 border border-gray-300 rounded text-center text-sm focus:ring-1 focus:ring-amber-500"
+                                                        />
+                                                        <span className="text-xs text-gray-500">คน</span>
+                                                    </div>
+                                                    
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeShiftRow(index)}
+                                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                        title="ลบกะนี้"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="text-center py-8 bg-white rounded-lg border-2 border-dashed border-amber-200">
+                                        <PlusCircle className="w-12 h-12 mx-auto text-amber-400 mb-3" />
+                                        <p className="text-gray-500 font-medium">ยังไม่มีการกำหนดกะ</p>
+                                        <p className="text-sm text-gray-400 mt-1">คลิกปุ่ม "เพิ่มกะ" เพื่อเริ่มต้น</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
 

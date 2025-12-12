@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
 import { ALL_PAGES } from '../../data/mockData';
 import ConfirmationModal from '../modals/ConfirmationModal';
+import { FullPageLoading } from '../common/LoadingSpinner';
 import { Users, List, Shield, KeyRound, PlusCircle, Edit, Trash2, Eye, EyeOff } from 'lucide-react'; // เพิ่ม Eye, EyeOff
 
 // ... (BankFormModal และ RoleFormModal เหมือนเดิม ไม่ต้องแก้) ...
@@ -366,7 +367,7 @@ function UserSettings() {
         }
     };
 
-    if (isLoading) return <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>;
+    if (isLoading) return <FullPageLoading text="กำลังโหลดข้อมูลการตั้งค่า" />;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">

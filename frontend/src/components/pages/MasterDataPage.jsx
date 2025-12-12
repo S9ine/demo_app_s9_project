@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../config/api';
 import ConfirmationModal from '../modals/ConfirmationModal';
+import { FullPageLoading } from '../common/LoadingSpinner';
 import { Building2, PlusCircle, Edit, Trash2, Shield, Clock } from 'lucide-react';
 
 // Form Modal สำหรับ 'เพิ่ม' หรือ 'แก้ไข' ข้อมูลธนาคาร
@@ -290,11 +291,7 @@ export default function MasterDataPage({ user }) {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-96">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            </div>
-        );
+        return <FullPageLoading text="กำลังโหลดข้อมูลหลัก" />;
     }
 
     return (

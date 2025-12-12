@@ -1,6 +1,7 @@
 // frontend/src/components/pages/DailyAdvancePage.jsx
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../config/api';
+import { FullPageLoading } from '../common/LoadingSpinner';
 import { PlusCircle, Edit, Trash2, X, FileText, User, Clock, Share2, Download } from 'lucide-react';
 
 // Component for Creating/Editing Documents
@@ -403,7 +404,7 @@ export default function DailyAdvancePage({ user }) {
 
             <div className="mt-6 space-y-4">
                 {isLoading ? (
-                    <div className="text-center py-10 text-gray-500">กำลังโหลดข้อมูล...</div>
+                    <FullPageLoading text="กำลังโหลดข้อมูลเบิกเงินรายวัน" />
                 ) : (
                     documents.map(doc => (
                         <div key={doc.id} className="bg-white p-4 rounded-lg shadow-md border flex justify-between items-center">

@@ -1,6 +1,7 @@
 // src/context/AuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import api from '../config/api';
+import { FullPageLoading } from '../components/common/LoadingSpinner';
 
 const AuthContext = createContext(null);
 
@@ -96,7 +97,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     if (isLoading) {
-        return <div className="flex items-center justify-center h-screen">กำลังโหลด...</div>;
+        return <FullPageLoading text="กำลังตรวจสอบสิทธิ์การเข้าใช้งาน" />;
     }
 
     return (

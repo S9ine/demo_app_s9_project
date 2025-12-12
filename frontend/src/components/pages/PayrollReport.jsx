@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Download, Calendar, DollarSign, Clock, TrendingUp, Building2 } from 'lucide-react';
 import api from '../../config/api';
+import { FullPageLoading } from '../common/LoadingSpinner';
 
 const PayrollReport = () => {
   const [guards, setGuards] = useState([]);
@@ -180,10 +181,7 @@ const PayrollReport = () => {
               </div>
 
               {loading ? (
-                <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-                  <p className="text-gray-500 mt-4">กำลังโหลดข้อมูล...</p>
-                </div>
+                <FullPageLoading text="กำลังโหลดข้อมูลการทำงาน" />
               ) : workHistory ? (
                 <>
                   {/* Summary Cards */}
